@@ -435,7 +435,9 @@ First 5 ERROR lines:
   [order-engine-3.log] 2026-05-01T08:01:02.000Z [ERROR] Out of memory...
 ```
 
-Note: `[worker]` lines appear in random order (proves concurrency). Report table is sorted by filename.
+Note: 
+- `[worker]` lines appear in random order (proves concurrency). Report table is sorted by filename.
+- The 5 ERROR lines may differ (proves concurrency)
 
 ### 7. Design Constraint — Why Both Channel AND Mutex?
 You must use **both** mechanisms in this challenge. Think about what kind of data each worker produces:
@@ -456,20 +458,14 @@ Knowing when to reach for a channel vs a mutex is what separates junior from mid
 - Appending to a shared slice without protection — race condition
 - Passing `wg` instead of `&wg` — `Done()` on a copy does nothing
 
-### 10. What a Senior Would Do Differently
-- Add `context.Context` with cancel — if one worker hits a fatal error, all others stop
-- Use `errgroup` from `golang.org/x/sync/errgroup` — handles WaitGroup + error collection in one
-- Cap goroutines with a semaphore channel when scanning 10,000+ files
-- Use `bufio.Scanner` with custom buffer size for multi-GB log files
-
-### 11. Hints & Knowledge
+### 10. Hints & Knowledge
 - `os.ReadDir`, `bufio.NewScanner`, `strings.Contains`
 - `sort.Slice` for sorting results
 - `fmt.Fprintf` with `%-16s %6d` for aligned columns
 - Buffered channel: `make(chan T, N)` — workers don't block waiting for reader
 - `for result := range ch` — reads until `close(ch)`
 
-### 12. Sources
+### 11. Sources
 - Goroutines: https://go.dev/tour/concurrency/1
 - Channels: https://go.dev/tour/concurrency/2
 - `sync.WaitGroup`: https://pkg.go.dev/sync#WaitGroup
@@ -477,7 +473,7 @@ Knowing when to reach for a channel vs a mutex is what separates junior from mid
 - Race detector: https://go.dev/doc/articles/race_detector
 - `bufio.Scanner`: https://pkg.go.dev/bufio#Scanner
 
-### 13. Checklist
+### 12. Checklist
 ```
 [ ] go run scanner.go          — runs without errors
 [ ] go run -race scanner.go   — ZERO race conditions

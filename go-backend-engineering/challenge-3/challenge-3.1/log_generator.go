@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -86,7 +87,7 @@ func getLevel() string {
 	case levelValue < 70:
 		return "INFO"
 	case levelValue < 90:
-		return "WARM"
+		return "WARN"
 	default:
 		return "ERROR"
 	}
@@ -107,11 +108,11 @@ func getMessage(level string) string {
 	}
 }
 
-func logGenerate(serviceName string, baseTs time.Time) {
-	fileName := outputDir + "/" + serviceName + ".log"
+func logGenerate(idx int, serviceName string, baseTs time.Time) {
+	fileName := outputDir + "/" + serviceName + "-" + strconv.Itoa(idx+1) + ".log"
 	f, err := os.Create(fileName)
 	if err != nil {
-		log.Fatal()
+		log.Fatal(err)
 	}
 	defer f.Close()
 	currentTime := baseTs
@@ -124,7 +125,7 @@ func logGenerate(serviceName string, baseTs time.Time) {
 			currentTime.Format("2026-05-01T08:00:03.000Z"), level, serviceName, traceID, message)
 		_, err := f.WriteString(line)
 		if err != nil {
-			log.Fatal()
+			log.Fatal(err)
 		}
 	}
 	fmt.Printf(" ✔ %s (%d lines)\n", fileName, numLines)
@@ -137,9 +138,9 @@ func main() {
 	}
 	// -24 so we have log in the past
 	baseTs := time.Now().Add(-24 * time.Hour)
-	fmt.Println("Generating 7 log files (300 lines each)...")
-	for _, service := range services {
-		logGenerate(service, baseTs)
+	fmt.Println("Generating 7 log files (300 lines each)...\n")
+	for idx, service := range services {
+		logGenerate(idx, service, baseTs)
 	}
 	fmt.Println("Done!")
 }
