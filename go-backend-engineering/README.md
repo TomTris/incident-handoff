@@ -228,87 +228,278 @@ Total area: 114.54
 
 ---
 
-## Challenge 3.1 — Build a Concurrent Log Scanner
-### `🟡 Beginner → Intermediate`
-**🕐 Expected duration: 15–20 hours**
+## Challenge 3.1A — Log File Generator
+### `🟢 Beginner`
+**🕐 Expected duration: 2–3 hours**
 
 ### 1. Context
-Imagine you're on a platform team. An incident just happened and you need to scan 50 server log files for `ERROR` lines — fast. Doing it sequentially takes 50× longer than necessary. The fix: scan all files at the same time, each in its own goroutine, and collect results through a channel.
-
-This is a fan-out/fan-in pattern — one of the two most important concurrency patterns in Go. You'll see it in log processors, data pipelines, and CI/CD systems.
+Before you can build a concurrent log scanner, you need log files to scan. This part generates realistic fake logs that Part B will consume.
 
 ### 2. Goal
-Build a concurrent log file scanner that processes multiple files simultaneously, collects all ERROR lines via a channel, and prints a final report.
+Build `log_generator.go` that creates 7 fake `.log` files in `./logs/`, each with 300 lines of random log entries.
 
 ### 3. Scope
-- Generate 5 fake `.log` files at startup (100 lines each, random `INFO`/`WARN`/`ERROR`)
-- Launch one **goroutine per file** to scan it — fan-out
-- Each goroutine sends its result into a shared results channel — fan-in
-- A single collector goroutine reads from the channel and stores results
+- Create `./logs/` directory safely (no crash if it already exists)
+- Generate files named `gateway_1.log` through `auth-service_7.log`, by using service names (See [Given Variables](#4-given-variables)).
+- Each line follows this format:
+```
+2026-05-01T08:00:03.000Z [INFO ] [gateway] [trace=a3f9c012] Request processed in 42ms
+```
+- Level distribution: 70% INFO, 20% WARN, 10% ERROR
+- Each file uses a different service name
+- Timestamps must strictly increase within each file, each message is spaced 1-15 seconds apart.
+- Print progress as each file is created
+
+### 4. Given Variables
+```go
+const (
+	numFiles    = 7
+	numLines    = 300
+	outputDir   = "logs"
+)
+ 
+var (
+	levels = []string{"INFO", "WARN", "ERROR"}
+ 
+	infoMessages = []string{
+		"Service started successfully",
+		"Configuration loaded from /etc/app/config.yaml",
+		"Database connection pool initialized (size=10)",
+		"Health check endpoint responding on :8080/health",
+		"Cache warmed up with 1482 entries",
+		"Scheduled job 'cleanup' registered (interval=5m)",
+		"TLS certificate valid until 2027-03-15",
+		"Request processed in 42ms",
+		"User session created",
+		"Metrics exported to Prometheus",
+		"Batch import completed: 350 records",
+		"Webhook delivered to https://hooks.example.com/notify",
+		"Rate limiter reset for tenant acme-corp",
+		"Graceful reload triggered by SIGHUP",
+		"New worker spawned (pool=4/8)",
+	}
+ 
+	warnMessages = []string{
+		"Response time exceeded 500ms threshold (actual=623ms)",
+		"Disk usage at 82%% on /var/lib/data",
+		"Retry attempt 2/5 for upstream service payment-api",
+		"Deprecated header X-Request-ID used by client 10.0.3.44",
+		"Connection pool nearing capacity (8/10)",
+		"Clock skew detected: 1.3s drift from NTP server",
+		"Certificate expires in 30 days",
+		"Memory usage above 75%% (current=78%%)",
+		"Slow query detected: SELECT * FROM orders (1.8s)",
+		"Rate limit approaching for API key sk-...a3f9",
+		"Fallback to secondary DNS resolver",
+		"Stale cache entry served for key user:9281",
+		"Config key 'legacy_mode' is deprecated, migrate to v2 schema",
+		"Unrecognized query parameter 'debug' ignored",
+		"Partial response returned: 3 of 5 shards responded",
+	}
+ 
+	errorMessages = []string{
+		"Failed to connect to postgres://db:5432/app — connection refused",
+		"Panic recovered in handler /api/v1/orders: index out of range [5]",
+		"TLS handshake failed: certificate signed by unknown authority",
+		"Out of memory: cannot allocate 256MB for image processing",
+		"Deadlock detected between goroutine 47 and goroutine 52",
+		"Kafka consumer lag exceeded 10000 messages on topic=events",
+		"Disk write failed: /var/log/app.log — no space left on device",
+		"Authentication failed for user admin@example.com (attempt 5/5)",
+		"Circuit breaker OPEN for service inventory-api (failures=12)",
+		"Unhandled exception in middleware chain: nil pointer dereference",
+		"DNS resolution failed for api.partner.io",
+		"S3 upload failed: AccessDenied on bucket prod-assets",
+		"Request timeout after 30s: POST /api/v1/reports/generate",
+		"Invalid JWT token: signature verification failed",
+		"Migration 0042_add_index.sql failed: duplicate column name",
+	}
+ 
+	services = []string{
+		"gateway", "auth-service", "order-engine",
+		"payment-api", "notification-worker", "scheduler", "inventory-sync",
+	}
+)
+```
+### 5. Expected Output
+```
+Generating 7 log files (300 lines each)...
+  ✔ logs/gateway-1.log  (300 lines)
+  ✔ logs/auth-service-2.log  (300 lines)
+  ✔ logs/order-engine-3.log  (300 lines)
+  ✔ logs/payment-api-4.log  (300 lines)
+  ✔ logs/notification-worker-5.log  (300 lines)
+  ✔ logs/scheduler-6.log  (300 lines)
+  ✔ logs/inventory-sync-7.log  (300 lines)
+Done!
+```
+
+### 6. Hints
+- `os.MkdirAll`, `os.Create`, `fmt.Sprintf("%08x", rand.Uint32())`
+- Accumulate timestamps, don't calculate from base + index
+
+### 7. Knowledge Gained
+- ✅ File I/O — `os.Create`, `WriteString`
+- ✅ `time.Time` formatting and arithmetic
+- ✅ Weighted random generation
+
+---
+---
+
+## Challenge 3.1B — Concurrent Log Scanner
+### `🟡 Beginner → Intermediate`
+**🕐 Expected duration: 8–12 hours**
+
+### 1. Context
+You have 5 log files from Part A. An incident just happened — scan all files simultaneously, count levels per file, capture every ERROR line, and print a report. Doing it sequentially is too slow.
+
+### 2. Goal
+Build `scanner.go` that processes all log files in parallel using goroutines, collects results through a channel AND a mutex-protected shared list, and prints a sorted report.
+
+### 3. Scope
+- Read all `.log` files from `./logs/`
+- Launch **one goroutine per file** — fan-out
+- Each worker scans its file line by line, counts INFO/WARN/ERROR
+- Workers send per-file statistics through a **channel** — fan-in
+- Workers append individual ERROR lines to a **shared slice protected by mutex**
 - Use `sync.WaitGroup` to know when all workers are done
 - Close the channel after all goroutines finish
-- Print a sorted final report: errors per file + total errors found
+- Print a sorted report: table of counts per file, totals, worst file, and first 5 ERROR lines
 - Must pass `go run -race .` with zero race conditions
 
-### 4. Expected Output
-```
-Scanning 5 files concurrently...
+### 4. Given Structs
+```go
+type FileResult struct {
+    Filename   string
+    InfoCount  int
+    WarnCount  int
+    ErrorCount int
+}
 
-[worker] log_1.log → 7 errors found
-[worker] log_3.log → 3 errors found
-[worker] log_2.log → 9 errors found
-[worker] log_5.log → 4 errors found
-[worker] log_4.log → 6 errors found
-
-=== ERROR REPORT ===
-log_1.log : 7 errors
-log_2.log : 9 errors
-log_3.log : 3 errors
-log_4.log : 6 errors
-log_5.log : 4 errors
-Total     : 29 errors
+type ErrorLog struct {
+    Filename string
+    Line     string
+}
 ```
 
-### 5. Why This Matters in Production
-Fan-out/fan-in is the core of Go's concurrency model. It's used in:
-- **CI/CD systems** — run tests for N packages in parallel, collect results
-- **Data pipelines** — process N files/records simultaneously
-- **Web scrapers** — fetch N URLs concurrently
-- **Kubernetes controllers** — reconcile N resources at the same time
-Understanding this pattern is essential for writing real Go backend services.
+```go
+var (
+    allErrors []ErrorLog
+    mu        sync.Mutex
+)
+```
 
-### 6. Common Mistakes to Avoid
-- Closing the channel from inside a goroutine instead of the coordinator — causes panic if another goroutine writes after close
-- Calling `wg.Wait()` in the main goroutine before launching the close-channel goroutine — causes deadlock
-- Using an unbuffered channel when workers produce faster than collector consumes — causes goroutine leak
-- Not passing `&wg` (pointer) to the worker — `wg.Done()` on a copy does nothing
+One struct goes through a channel. The other goes into a shared slice. Which is which — and why — is yours to figure out.
 
-### 7. What a Senior Would Do Differently
-- Add a `context.Context` with cancel — so if one worker hits a fatal error, all others stop
+### 5. Must Use
+```
+goroutine (1 per file)       — fan-out
+channel (for per-file stats) — fan-in
+sync.WaitGroup               — coordinate completion
+sync.Mutex                   — protect shared error list
+bufio.Scanner                — read files line by line
+```
+
+### 6. Expected Output
+```
+Scanning 7 files concurrently...
+
+[worker] gateway-1.log → INFO:138  WARN:41  ERROR:21
+[worker] order-engine-3.log → INFO:140  WARN:39  ERROR:21
+[worker] auth-service-2.log → INFO:142  WARN:38  ERROR:20
+[worker] notification-worker-5.log → INFO:137  WARN:42  ERROR:21
+[worker] payment-api-4.log → INFO:141  WARN:40  ERROR:19
+[worker] scheduler-6.log → INFO:139  WARN:41  ERROR:20
+[worker] inventory-sync-7.log → INFO:140  WARN:40  ERROR:20
+
+══════════════════════════════════════════════════════
+                    ERROR REPORT
+══════════════════════════════════════════════════════
+ File                          INFO    WARN    ERROR
+──────────────────────────────────────────────────────
+ gateway-1.log                  138      41       21
+ auth-service-2.log             142      38       20
+ order-engine-3.log             140      39       21
+ payment-api-4.log              141      40       19
+ notification-worker-5.log      137      42       21
+ scheduler-6.log                139      41       20
+ inventory-sync-7.log           140      40       20
+──────────────────────────────────────────────────────
+ TOTAL                          977     281      142
+══════════════════════════════════════════════════════
+
+Worst file: notification-worker-5.log (21 errors)
+
+First 5 ERROR lines:
+  [gateway-1.log] 2026-05-01T08:02:11.000Z [ERROR] Failed to connect...
+  [order-engine-3.log] 2026-05-01T08:01:02.000Z [ERROR] Out of memory...
+```
+
+Note: `[worker]` lines appear in random order (proves concurrency). Report table is sorted by filename.
+
+### 7. Design Constraint — Why Both Channel AND Mutex?
+You must use **both** mechanisms in this challenge. Think about what kind of data each worker produces:
+- One type is sent **exactly once** per worker
+- The other is sent **zero to many times**, unpredictably
+
+Which mechanism fits which? Figure this out — it's the core design decision.
+
+### 8. Why This Matters in Production
+Fan-out/fan-in is the core of Go's concurrency model. It's used in CI/CD systems (test N packages in parallel), data pipelines (process N files simultaneously), web scrapers (fetch N URLs concurrently), and Kubernetes controllers (reconcile N resources at the same time).
+
+Knowing when to reach for a channel vs a mutex is what separates junior from mid-level Go engineers.
+
+### 9. Common Mistakes to Avoid
+- `wg.Add(1)` in the wrong place — silent data loss, no crash, no error, just missing results
+- `wg.Wait(); close(ch)` in the wrong goroutine — deadlock
+- Forgetting `close(ch)` entirely — deadlock
+- Appending to a shared slice without protection — race condition
+- Passing `wg` instead of `&wg` — `Done()` on a copy does nothing
+
+### 10. What a Senior Would Do Differently
+- Add `context.Context` with cancel — if one worker hits a fatal error, all others stop
 - Use `errgroup` from `golang.org/x/sync/errgroup` — handles WaitGroup + error collection in one
-- Cap the number of goroutines with a semaphore channel instead of one-per-file, for when N is large
-- Use `bufio.Scanner` with a custom buffer size for large log files
+- Cap goroutines with a semaphore channel when scanning 10,000+ files
+- Use `bufio.Scanner` with custom buffer size for multi-GB log files
 
-### 8. Hints & Knowledge
-- `go func()` launches a goroutine — 2KB stack, multiplexed onto OS threads by the Go scheduler
-- `wg.Add(1)` before `go`, `wg.Done()` inside goroutine, `wg.Wait()` to block until all done
-- `make(chan Result, N)` — buffered channel, workers don't block waiting for collector
-- `for result := range ch` — reads until `close(ch)` is called
-- `go run -race .` — the race detector, essential tool for concurrent Go
+### 11. Hints & Knowledge
+- `os.ReadDir`, `bufio.NewScanner`, `strings.Contains`
+- `sort.Slice` for sorting results
+- `fmt.Fprintf` with `%-16s %6d` for aligned columns
+- Buffered channel: `make(chan T, N)` — workers don't block waiting for reader
+- `for result := range ch` — reads until `close(ch)`
 
-### 9. Sources
+### 12. Sources
 - Goroutines: https://go.dev/tour/concurrency/1
 - Channels: https://go.dev/tour/concurrency/2
 - `sync.WaitGroup`: https://pkg.go.dev/sync#WaitGroup
+- `sync.Mutex`: https://pkg.go.dev/sync#Mutex
 - Race detector: https://go.dev/doc/articles/race_detector
 - `bufio.Scanner`: https://pkg.go.dev/bufio#Scanner
 
-### 10. Knowledge Gained
-- ✅ Goroutines — launching and managing concurrent work
-- ✅ Channels — type-safe message passing between goroutines
-- ✅ `sync.WaitGroup` — coordinating goroutine completion
-- ✅ Fan-out / fan-in — the most common Go concurrency pattern
-- ✅ Race condition detection
+### 13. Checklist
+```
+[ ] go run scanner.go          — runs without errors
+[ ] go run -race scanner.go   — ZERO race conditions
+[ ] go vet ./...               — zero warnings
+[ ] Worker lines appear in random order
+[ ] Report table sorted by filename
+[ ] ERROR lines are captured and printed
+[ ] Both channel AND mutex are used correctly
+```
+
+### 14. Knowledge Gained
+```
+✅ Goroutine         — launch and manage concurrent work
+✅ Channel           — buffered, send/receive, close, range
+✅ Directional chan  — chan<- (send-only) in function signatures
+✅ sync.WaitGroup    — coordinate goroutine completion
+✅ sync.Mutex        — protect shared state
+✅ Fan-out / Fan-in  — most important Go concurrency pattern
+✅ Channel vs Mutex  — when to use which
+✅ Race detection    — go run -race
+✅ bufio.Scanner     — efficient line-by-line file reading
+```
 
 ---
 
