@@ -8,7 +8,7 @@
 ## Who is this for?
 
 This handbook is for developers who:
-- Already know at least one programming language
+- Already know basic of programming
 - Want to learn Go properly — not just syntax, but how Go is actually used in production
 - Want to understand Go backend and systems engineering deeply
 
@@ -646,12 +646,12 @@ Knowing when to use a worker pool vs fan-out is a key advanced Go topic.
 
 ---
 
-## Challenge 4.1 — The Benchmark Battle
+## Challenge 4 — The Benchmark Battle
 ### `🟠 Intermediate → Advanced`
 **🕐 Expected duration: 15–20 hours**
 
 ### 1. Context
-A data pipeline at your company processes millions of log lines per day. Each line is parsed into a key-value map. The current implementation is correct but slow — and it's causing GC pressure because it allocates a new map on every single call. Your job: measure it, understand why it's slow, and fix it.
+A data pipeline at your company processes dozen millions of log lines per day. Each line is parsed into a key-value map. The current implementation is correct but slow — and it's causing GC pressure because it allocates a new map on every single call. Your job: measure it, understand why it's slow, and fix it.
 
 This is a real scenario. Datadog, Cloudflare, and similar companies do this kind of optimization routinely on their log ingestion pipelines.
 
@@ -659,35 +659,92 @@ This is a real scenario. Datadog, Cloudflare, and similar companies do this kind
 Benchmark two existing implementations, analyze their memory behavior using Go's built-in tooling, then write a faster third version that wins on both time and allocations.
 
 ### 3. Scope
-- Write proper benchmark tests for Version A and Version B (provided)
+- Write proper benchmark tests for Version A and Version B (provided). For each round, the parser needs to parse the whole file.
 - Run `go test -bench=. -benchmem` and record: `ns/op`, `B/op`, `allocs/op`
-- Run `go build -gcflags="-m"` to see escape analysis output — what goes to heap?
+- Run `go build -gcflags="-m" . 2>&1 | grep "escapes to heap"` to see escape analysis output — what goes to heap?
 - Write Version C using `sync.Pool` to reduce heap allocations
-- Version C must have fewer `allocs/op` than both A and B
+- Version C must have fewer `ns/op`, `B/ops` and `allocs/op` than both A and B
 - Write a short explanation (as comments) of what each optimization does and why
 
-### 4. Expected Output
-```
-BenchmarkParseA-8    500000    2341 ns/op    512 B/op    8 allocs/op
-BenchmarkParseB-8    800000    1823 ns/op    384 B/op    6 allocs/op
-BenchmarkParseC-8   2000000     601 ns/op     64 B/op    1 allocs/op
+### 4. Given Code
+
+```go
+// parser.go
+func ParseA(line string) map[string]string {
+	result := map[string]string{}
+	parts := strings.Split(line, "|")
+	for _, p := range parts {
+		kv := strings.Split(strings.TrimSpace(p), "=")
+		if len(kv) == 2 {
+			result[kv[0]] = kv[1]
+		}
+	}
+	return result
+}
+ 
+func ParseB(line string) map[string]string {
+	pairs := strings.Split(line, "|")
+	result := make(map[string]string, len(pairs))
+	for _, p := range pairs {
+		p = strings.TrimSpace(p)
+		if idx := strings.Index(p, "="); idx != -1 {
+			result[p[:idx]] = p[idx+1:]
+		}
+	}
+	return result
+}
+
+// parser_test.go
+// loadLines reads all lines from a file into memory.
+// Use this in benchmarks so we only measure parsing time,
+// not file I/O.
+func loadLines(path string) []string {
+    file, err := os.Open(path)
+    if err != nil {
+        panic(err)
+    }
+    defer file.Close()
+
+    var lines []string
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        lines = append(lines, scanner.Text())
+    }
+    return lines
+}
 ```
 
-### 5. Why This Matters in Production
-At 1M requests/day, the difference between 8 allocs/op and 1 alloc/op is 7 million fewer heap allocations. Each allocation the GC doesn't have to track = less GC pause = lower tail latency. This is why high-performance Go services obsess over allocations per request.
+#### File structure
+```
+your_folder/
+├── parser.go
+├── parser_test.go
+└── testdata/
+    └── logs.txt       ← provided (10,000 sample log lines)
+```
+### 5. Expected Output
+```
+go test -bench=. -benchmem
+goos: darwin
+goarch: arm64
+pkg: benchmark
+cpu: Apple M4
+BenchmarkParseA-10           268           4329510 ns/op         8315234 B/op     116476 allocs/op
+BenchmarkParseB-10           504           2427512 ns/op         5220761 B/op      33408 allocs/op
+BenchmarkParseC-10           586           2037913 ns/op         1302817 B/op      10001 allocs/op
+PASS
+ok      benchmark       3.822s
+```
 
-### 6. Common Mistakes to Avoid
+### 6. Why This Matters in Production
+At 10M requests/day, the difference between 10000 allocs/op and 30000 alloc/op is 20 million fewer heap allocations. Each allocation the GC doesn't have to track = less GC pause = lower tail latency. This is why high-performance Go services obsess over allocations per request.
+
+### 7. Common Mistakes to Avoid
 - Optimizing without measuring first — "premature optimization is the root of all evil"
-- Not calling `mapPool.Put(result)` after use — defeats the purpose of `sync.Pool`
-- Using `sync.Pool` for objects that have identity or state that shouldn't be shared
+- Not calling `mapPool.Put(result)` (or Release) after use — defeats the purpose of `sync.Pool`
+- Not clearing the map after Get() — stale data leaks
 - Confusing `b.N` — Go determines the right N automatically, never hardcode it
 - Not running benchmarks multiple times — use `-count=5` for stable results
-
-### 7. What a Senior Would Do Differently
-- Use `pprof` for CPU and heap profiling on a running service, not just microbenchmarks
-- Consider `[]byte` instead of `string` for the entire pipeline — avoids string→[]byte conversion
-- Use `go test -benchmem -cpuprofile cpu.out` then `go tool pprof cpu.out` to see flamegraphs
-- Know when `sync.Pool` is *not* appropriate — for objects with finalizers or long-lived state
 
 ### 8. Hints & Knowledge
 - `func BenchmarkX(b *testing.B) { for i := 0; i < b.N; i++ { ... } }` — standard shape
@@ -695,6 +752,19 @@ At 1M requests/day, the difference between 8 allocs/op and 1 alloc/op is 7 milli
 - `B/op` = bytes allocated per operation, `allocs/op` = number of heap allocations
 - Escape analysis: if a local variable is used after the function returns, it "escapes" to heap
 - `sync.Pool`: Get() → use → Put() — reuse without allocation
+- func `clear` helps clear your hash-map
+
+#### Tools You'll Need (or want)
+
+| Command | What it does |
+|---|---|
+| `go test -v` | Run all tests |
+| `go test -run TestX -v` | Run one specific test |
+| `go test -bench=. -benchmem` | Run all benchmarks with memory stats |
+| `go test -bench=. -benchmem -count=5` | Run 5x for stable numbers |
+| `go build -gcflags="-m" .` | Show escape analysis |
+| `go test -cpuprofile cpu.out -bench=.` - optional | Generate CPU profile |
+| `go tool pprof cpu.out` - optional | Explore with pprof |
 
 ### 9. Sources
 - Go benchmarks: https://pkg.go.dev/testing#hdr-Benchmarks
@@ -710,7 +780,6 @@ At 1M requests/day, the difference between 8 allocs/op and 1 alloc/op is 7 milli
 - ✅ How to approach performance work: measure → profile → optimize → re-measure
 
 ---
-
 # PHASE 5 — Standard Library & Systems Integration
 
 > **Why this phase matters**
@@ -891,15 +960,15 @@ Performance under pressure is a skill. Writing correct Go under a 45-minute cloc
 
 | Phase | Challenge | Hours | Level | Topics |
 |---|---|---|---|---|
-| 2 | Multi-Format Logger | 8–10h | 🟡 Beginner→Intermediate | interfaces, io.Writer, json |
-| 2 | Shape Calculator Fix | 3–4h | 🟢 Beginner | type switch, interface bugs |
-| 3 | Concurrent Log Scanner | 15–20h | 🟡 Beginner→Intermediate | goroutines, channels, WaitGroup |
-| 3 | Worker Pool URL Checker | 15–20h | 🟠 Intermediate | worker pool, context, http client |
-| 4 | Benchmark Battle | 15–20h | 🟠 Intermediate→Advanced | benchmarks, sync.Pool, pprof |
-| 5 | Mini DevOps Dashboard | 25–30h | 🔴 Intermediate→Advanced | http, json API, mutex, ticker |
-| 6 | Code Review Gauntlet | 10h | 🔴 Advanced | spot bugs, leaks, races |
-| 6 | Build Under Pressure | 8–10h | 🔴 Advanced | pressure simulation |
-| | **Total** | **~110–130h** | | |
+| 2 | Multi-Format Logger | 3–5h | 🟡 Beginner→Intermediate | interfaces, io.Writer, json |
+| 2 | Shape Calculator Fix | 1–2h | 🟢 Beginner | type switch, interface bugs |
+| 3 | Concurrent Log Scanner | 7–12h | 🟡 Beginner→Intermediate | goroutines, channels, mutex, WaitGroup |
+| 3 | Worker Pool URL Checker | 8–12h | 🟠 Intermediate | worker pool, context, http client |
+| 4 | Benchmark Battle | 6–10h | 🟠 Intermediate→Advanced | benchmarks, sync.Pool, pprof |
+| 5 | Mini DevOps Dashboard | 14–20h | 🔴 Intermediate→Advanced | http, json API, mutex, ticker |
+| 6 | Code Review Gauntlet | 4-6h | 🔴 Advanced | spot bugs, leaks, races |
+| 6 | Build Under Pressure | 4–6h | 🔴 Advanced | pressure simulation |
+| | **Total** | **~50–70h** | | |
 
 ---
 
