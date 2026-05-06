@@ -4,16 +4,21 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
 type MemoryStore struct {
+	mu                  sync.RWMutex
 	incidents           map[string]Incident
 	nextIncidentID      int
 	nextEntryTimelineID int
 }
 
 func (m *MemoryStore) CreateIncident(ctx context.Context, inc Incident) (Incident, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.nextIncidentID++
 	inc.ID = incidentIDPrefix + strconv.Itoa(m.nextIncidentID)
 	inc.Status = TRIGGERED
@@ -25,6 +30,9 @@ func (m *MemoryStore) CreateIncident(ctx context.Context, inc Incident) (Inciden
 }
 
 func (m *MemoryStore) GetIncident(ctx context.Context, id string) (Incident, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	inc, ok := m.incidents[id]
 	if ok == false {
 		return inc, ErrIncidentNotFound
@@ -33,22 +41,29 @@ func (m *MemoryStore) GetIncident(ctx context.Context, id string) (Incident, err
 }
 
 func (m *MemoryStore) AddEntry(ctx context.Context, incidentID string, entry TimelineEntry) (TimelineEntry, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	inc, ok := m.incidents[incidentID]
 	if ok == false {
 		return TimelineEntry{}, ErrIncidentNotFound
 	}
 	if inc.Status == RESOLVED {
-		return TimelineEntry{}, ErrConflict
+		return TimelineEntry{}, ErrIncidentConflict
 	}
 	m.nextEntryTimelineID++
 	entry.ID = entryIDPrefix + strconv.Itoa(m.nextEntryTimelineID)
 	entry.Time = time.Now()
 	inc.Entries = append(inc.Entries, entry)
+	inc.UpdatedAt = time.Now()
 	m.incidents[incidentID] = inc
 	return entry, nil
 }
 
 func (m *MemoryStore) ListIncidents(ctx context.Context, filter IncidentFilter) ([]Incident, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	isServiceMatch := func(incident Incident, filter IncidentFilter) bool {
 		return filter.Service == "" || filter.Service == incident.Service
 	}
@@ -71,6 +86,9 @@ func (m *MemoryStore) ListIncidents(ctx context.Context, filter IncidentFilter) 
 }
 
 func (m *MemoryStore) UpdateIncident(ctx context.Context, id string, update IncidentUpdate) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	incident, ok := m.incidents[id]
 	if ok != true {
 		return ErrIncidentNotFound
@@ -84,6 +102,7 @@ func (m *MemoryStore) UpdateIncident(ctx context.Context, id string, update Inci
 	if update.OnCall != nil {
 		incident.OnCall = *update.OnCall
 	}
+	incident.UpdatedAt = time.Now()
 	m.incidents[id] = incident
 	return nil
 }

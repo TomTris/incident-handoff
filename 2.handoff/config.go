@@ -35,7 +35,6 @@ var IncidentStatus = map[string]bool{
 	MITIGATED:     true,
 	RESOLVED:      true,
 	"active":      true,
-	"":            true,
 }
 
 // Entry type

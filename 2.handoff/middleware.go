@@ -33,14 +33,12 @@ func LoggingMiddleware(nextHandler http.Handler) http.Handler {
 			}
 		}()
 		nextHandler.ServeHTTP(w, r)
-		if panicked {
-			slog.Info("request completed",
-				"method", r.Method,
-				"path", r.URL.Path,
-				"duration", fmt.Sprintf("%dms", time.Since(start).Milliseconds()),
-				requestIDKey, r.Context().Value(requestIDKey),
-			)
-		}
+		slog.Info("request completed",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"duration", fmt.Sprintf("%dms", time.Since(start).Milliseconds()),
+			requestIDKey, r.Context().Value(requestIDKey),
+		)
 		panicked = false
 	})
 }

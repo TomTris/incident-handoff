@@ -16,13 +16,15 @@ func writeError(w http.ResponseWriter, status int, e ErrorMessageJSON) {
 }
 
 var ErrIncidentNotFound = errors.New("Incident not found")
-var ErrConflict = errors.New("The Incident is already resolved")
+var ErrIncidentConflict = errors.New("The Incident is already resolved")
+var ErrIncidentEmptyList = errors.New("No Incident found")
 
 // Will use if we have database
 var ErrInternal = errors.New("Internal Error")
 
 const (
-	INTERNAL_ERROR = "INTERNAL_ERROR"
-	BAD_REQUEST    = "BAD_REQUEST"
-	CONFLICT       = "CONFLICT"
+	INCIDENT_NOT_FOUND    = "INCIDENT_NOT_FOUND"
+	INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
+	BAD_REQUEST           = "BAD_REQUEST"
+	CONFLICT              = "CONFLICT"
 )

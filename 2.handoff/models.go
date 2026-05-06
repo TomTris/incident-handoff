@@ -41,21 +41,21 @@ func (c *TimelineEntry) Validate() error {
 }
 
 type IncidentFilter struct {
-	Status  string
-	Service string
+	Status  string `json:"status"`
+	Service string `json:"service"`
 }
 
 func (f *IncidentFilter) Validate() error {
-	if IncidentStatus[strings.Trim(f.Status, " ")] == false {
+	if f.Status != "" && !IncidentStatus[strings.TrimSpace(f.Status)] {
 		return errors.New("Invalid Incident status")
 	}
 	return nil
 }
 
 type IncidentUpdate struct {
-	Status   *string
-	Severity *string
-	OnCall   *string
+	Status   *string `json:"status"`
+	Severity *string `json:"severity"`
+	OnCall   *string `json:"on_call"`
 }
 
 func (f *IncidentUpdate) Validate() error {
@@ -66,30 +66,35 @@ func (f *IncidentUpdate) Validate() error {
 		return errors.New("Invalid Incident Severity")
 	}
 	if f.OnCall != nil && strings.Trim(*f.OnCall, " ") == "" {
+		f
 		return errors.New("On Call can't be empty")
 	}
 	return nil
 }
 
 type CreateIncidentRequest struct {
-	Title    string `json:"title"`
-	Service  string `json:"service"`
-	Severity string `json:"severity"` // SEV1, SEV2, SEV3
-	OpenedBy string `json:"opened_by"`
+	Title    string  `json:"title"`
+	Service  string  `json:"service"`
+	Severity string  `json:"severity"` // SEV1, SEV2, SEV3
+	OpenedBy string  `json:"opened_by"`
+	OnCall   *string `json:"on_call"`
 }
 
 func (c *CreateIncidentRequest) Validate() error {
 	if strings.Trim(c.Title, " ") == "" {
-		return errors.New("Request doesn't contain title")
+		return errors.New("Request doesn't contain title or is empty")
 	}
 	if strings.Trim(c.Service, " ") == "" {
-		return errors.New("Request doesn't contain service")
+		return errors.New("Request doesn't contain service or is empty")
 	}
-	if strings.Trim(c.Severity, " ") == "" {
-		return errors.New("Request doesn't contain severity")
+	if IncidentSeverity[strings.Trim(c.Severity, " ")] == false {
+		return errors.New("Request doesn't contain severity or is empty")
 	}
 	if strings.Trim(c.OpenedBy, " ") == "" {
-		return errors.New("Request doesn't contain opened_by")
+		return errors.New("Request doesn't contain opened_by or is empty")
+	}
+	if c.OnCall != nil && strings.Trim(*c.OnCall, " ") == "" {
+		return errors.New("The variable on_call must be either empty or non-existent")
 	}
 	return nil
 }

@@ -114,7 +114,7 @@ Define error codes: `INCIDENT_NOT_FOUND`, `INVALID_SEVERITY`, `INVALID_STATUS`, 
 - Severity must be one of: `SEV1`, `SEV2`, `SEV3`
 - Status must be one of: `triggered`, `acknowledged`, `investigating`, `mitigated`, `resolved`
 - Entry type must be one of: `observation`, `action`, `discovery`, `open_question`, `state_change`
-- Title, service, opened_by are required on creation (return `MISSING_FIELD` if absent)
+- Title, service, severity, opened_by are required on creation (return `MISSING_FIELD` if absent)
 - Status transitions must be valid: `resolved` incidents cannot accept new entries
 
 **Configuration from environment:**
