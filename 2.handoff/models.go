@@ -40,6 +40,10 @@ type CreateIncidentRequest struct {
 	OpenedBy string `json:"opened_by"`
 }
 
+type GetIncidentRequest struct {
+	IncidentID string `json:"incident_id"`
+}
+
 func (c *CreateIncidentRequest) Validate() error {
 	if strings.Trim(c.Title, " ") == "" {
 		return errors.New("Request doesn't contain title")

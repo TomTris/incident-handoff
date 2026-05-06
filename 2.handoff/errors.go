@@ -9,5 +9,5 @@ type ErrorMessageJSON struct {
 }
 
 func writeError(w http.ResponseWriter, status int, e ErrorMessageJSON) {
-	writeJSON(w, status, map[string]ErrorMessageJSON{"a": e})
+	writeJSON(w, status, map[string]ErrorMessageJSON{"error": e})
 }

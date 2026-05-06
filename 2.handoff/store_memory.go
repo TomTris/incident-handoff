@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 )
@@ -14,13 +15,20 @@ type MemoryStore struct {
 
 func (m *MemoryStore) CreateIncident(ctx context.Context, inc Incident) (Incident, error) {
 	m.nextIncidentID++
-
 	inc.ID = incidentIDPrefix + strconv.Itoa(m.nextIncidentID)
 	inc.Status = TRIGGERED
 	inc.CreatedAt = time.Now()
 	inc.UpdatedAt = time.Now()
 
 	m.incidents[inc.ID] = inc
+	return inc, nil
+}
+
+func (m *MemoryStore) GetIncident(ctx context.Context, id string) (Incident, error) {
+	inc, ok := m.incidents[id]
+	if ok == false {
+		return inc, errors.New("Incident not found")
+	}
 	return inc, nil
 }
 
