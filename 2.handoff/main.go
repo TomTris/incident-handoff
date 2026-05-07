@@ -37,7 +37,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	slog.Info("server shut down in 10 sec")
+	slog.Info("server shut down in <= 10 sec")
 	srv.Shutdown(ctx)
 	slog.Info("server shut down gracefully")
 }

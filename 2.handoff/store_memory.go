@@ -24,7 +24,7 @@ func (m *MemoryStore) CreateIncident(ctx context.Context, inc Incident) (Inciden
 	inc.Status = TRIGGERED
 	inc.CreatedAt = time.Now()
 	inc.UpdatedAt = time.Now()
-
+	inc.Entries = []TimelineEntry{}
 	m.incidents[inc.ID] = inc
 	return inc, nil
 }
@@ -90,7 +90,7 @@ func (m *MemoryStore) UpdateIncident(ctx context.Context, id string, update Inci
 	defer m.mu.Unlock()
 
 	incident, ok := m.incidents[id]
-	if ok != true {
+	if ok == false {
 		return ErrIncidentNotFound
 	}
 	if update.Status != nil {

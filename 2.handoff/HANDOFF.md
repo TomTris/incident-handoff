@@ -299,11 +299,13 @@ If you've never written a test before: a test is a function that calls your code
 
 ### 2. Goal
 
-Write unit tests and HTTP handler tests for the Phase 5 API. Learn Go's testing tools: `testing.T`, table-driven tests, and `httptest`.
+Write unit tests and HTTP handler tests for the Phase 5 API. Learn Go's testing tools: **`testing.T`**, **table-driven** tests, and **`httptest`**.
 
 ### 3. Scope
 
-**Your first test:**
+Note: Depending on your design, you may or may not have same functions as below. Be flexible and have similar tests for your own functions. You don't need to have the exact same functions testing exact same thing.
+
+**Write your first test:**
 
 Create `errors_test.go` next to `errors.go`. Write one test:
 
@@ -351,7 +353,7 @@ Each row is a case. `t.Run` creates a named subtest. If one fails, the name tell
 
 **Tests to write:**
 
-Unit tests (table-driven):
+Unit tests (table-driven) for standalone functions, example:
 - `validateSeverity` — valid values, invalid values, empty
 - `validateStatus` — valid values, invalid values
 - `validateEntryType` — valid values, invalid values
@@ -411,6 +413,7 @@ go test ./... -cover      # with coverage percentage
 [ ] go test -cover ./... — >60% coverage on handler and validation code
 [ ] Table-driven tests for all validation functions
 [ ] httptest tests for at least 5 handler cases (mix of success and error)
+
 ```
 
 ### 8. Knowledge Gained

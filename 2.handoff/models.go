@@ -28,14 +28,14 @@ type TimelineEntry struct {
 }
 
 func (c *TimelineEntry) Validate() error {
-	if strings.Trim(c.Author, " ") == "" {
-		return errors.New("Request doesn't contain Author")
+	if strings.TrimSpace(c.Author) == "" {
+		return ErrNoAuthor
 	}
-	if validEntryTypes[strings.Trim(c.Type, " ")] == false {
-		return errors.New("Request doesn't have valid entry type")
+	if validEntryTypes[strings.TrimSpace(c.Type)] == false {
+		return ErrBadEntryType
 	}
-	if strings.Trim(c.Text, " ") == "" {
-		return errors.New("Request doesn't contain text")
+	if strings.TrimSpace(c.Text) == "" {
+		return ErrNoText
 	}
 	return nil
 }
@@ -59,14 +59,14 @@ type IncidentUpdate struct {
 }
 
 func (f *IncidentUpdate) Validate() error {
-	if f.Status != nil && IncidentStatus[strings.Trim(*f.Status, " ")] == false {
-		return errors.New("Invalid Incident status")
+	if f.Status != nil && IncidentStatus[strings.TrimSpace(*f.Status)] == false {
+		return ErrBadStatus
 	}
-	if f.Severity != nil && IncidentSeverity[strings.Trim(*f.Severity, " ")] == false {
-		return errors.New("Invalid Incident Severity")
+	if f.Severity != nil && IncidentSeverity[strings.TrimSpace(*f.Severity)] == false {
+		return ErrInvalidSeverity
 	}
-	if f.OnCall != nil && strings.Trim(*f.OnCall, " ") == "" {
-		return errors.New("On Call can't be empty")
+	if f.OnCall != nil && strings.TrimSpace(*f.OnCall) == "" {
+		return ErrOnCall
 	}
 	return nil
 }
@@ -80,20 +80,20 @@ type CreateIncidentRequest struct {
 }
 
 func (c *CreateIncidentRequest) Validate() error {
-	if strings.Trim(c.Title, " ") == "" {
-		return errors.New("Request doesn't contain title or is empty")
+	if strings.TrimSpace(c.Title) == "" {
+		return ErrNoTitle
 	}
-	if strings.Trim(c.Service, " ") == "" {
-		return errors.New("Request doesn't contain service or is empty")
+	if strings.TrimSpace(c.Service) == "" {
+		return ErrNoService
 	}
-	if IncidentSeverity[strings.Trim(c.Severity, " ")] == false {
-		return errors.New("Request doesn't contain severity or is empty")
+	if IncidentSeverity[strings.TrimSpace(c.Severity)] == false {
+		return ErrInvalidSeverity
 	}
-	if strings.Trim(c.OpenedBy, " ") == "" {
-		return errors.New("Request doesn't contain opened_by or is empty")
+	if strings.TrimSpace(c.OpenedBy) == "" {
+		return ErrOpenedBy
 	}
-	if c.OnCall != nil && strings.Trim(*c.OnCall, " ") == "" {
-		return errors.New("The variable on_call must be either empty or non-existent")
+	if c.OnCall != nil && strings.TrimSpace(*c.OnCall) == "" {
+		return ErrOnCall
 	}
 	return nil
 }
