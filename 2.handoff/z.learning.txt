@@ -1,1 +1,0 @@
-CORS - not protect server, but users

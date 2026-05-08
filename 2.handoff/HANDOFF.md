@@ -60,7 +60,7 @@ type TimelineEntry struct {
 | `GET` | `/incidents` | List all incidents (filter: `?status=active&service=order-service`) |
 | `GET` | `/incidents/:id` | Get one incident with full timeline |
 | `POST` | `/incidents/:id/entries` | Add a timeline entry |
-| `PATCH` | `/incidents/:id` | Update severity or status |
+| `PATCH` | `/incidents/:id` | Update severity, status or on call|
 | `GET` | `/incidents/:id/handoff` | Auto-generated handoff brief |
 | `GET` | `/healthz` | Health check (returns 200 + `{"status":"ok"}`) |
 
@@ -114,7 +114,7 @@ Define error codes: `INCIDENT_NOT_FOUND`, `INVALID_SEVERITY`, `INVALID_STATUS`, 
 - Severity must be one of: `SEV1`, `SEV2`, `SEV3`
 - Status must be one of: `triggered`, `acknowledged`, `investigating`, `mitigated`, `resolved`
 - Entry type must be one of: `observation`, `action`, `discovery`, `open_question`, `state_change`
-- Title, service, opened_by are required on creation (return `MISSING_FIELD` if absent)
+- Title, service, severity, opened_by are required on creation (return `MISSING_FIELD` if absent)
 - Status transitions must be valid: `resolved` incidents cannot accept new entries
 
 **Configuration from environment:**
@@ -139,7 +139,7 @@ This is required for Kubernetes — when a pod is terminated, it sends `SIGTERM`
 **Store layer:**
 ```go
 type Store interface {
-    CreateIncident(ctx context.Context, inc Incident) error
+    CreateIncident(ctx context.Context, inc Incident) (Incident, error)
     GetIncident(ctx context.Context, id string) (Incident, error)
     ListIncidents(ctx context.Context, filter IncidentFilter) ([]Incident, error)
     UpdateIncident(ctx context.Context, id string, update IncidentUpdate) error
@@ -164,6 +164,7 @@ handoff/
 └── go.mod
 ```
 
+You can add more files if needed.
 ### 4. Expected Output
 
 ```bash
@@ -298,11 +299,13 @@ If you've never written a test before: a test is a function that calls your code
 
 ### 2. Goal
 
-Write unit tests and HTTP handler tests for the Phase 5 API. Learn Go's testing tools: `testing.T`, table-driven tests, and `httptest`.
+Write unit tests and HTTP handler tests for the Phase 5 API. Learn Go's testing tools: **`testing.T`**, **table-driven** tests, and **`httptest`**.
 
 ### 3. Scope
 
-**Your first test:**
+Note: Depending on your design, you may or may not have same functions as below. Be flexible and have similar tests for your own functions. You don't need to have the exact same functions testing exact same thing.
+
+**Write your first test:**
 
 Create `errors_test.go` next to `errors.go`. Write one test:
 
@@ -350,7 +353,7 @@ Each row is a case. `t.Run` creates a named subtest. If one fails, the name tell
 
 **Tests to write:**
 
-Unit tests (table-driven):
+Unit tests (table-driven) for standalone functions, example:
 - `validateSeverity` — valid values, invalid values, empty
 - `validateStatus` — valid values, invalid values
 - `validateEntryType` — valid values, invalid values
@@ -410,6 +413,7 @@ go test ./... -cover      # with coverage percentage
 [ ] go test -cover ./... — >60% coverage on handler and validation code
 [ ] Table-driven tests for all validation functions
 [ ] httptest tests for at least 5 handler cases (mix of success and error)
+
 ```
 
 ### 8. Knowledge Gained
