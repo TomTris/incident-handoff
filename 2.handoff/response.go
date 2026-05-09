@@ -15,6 +15,7 @@ func writeJSON(w http.ResponseWriter, status int, requestID string, v any) {
 			Message:   "Json Decode failed",
 			RequestID: requestID,
 		})
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

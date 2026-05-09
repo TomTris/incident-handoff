@@ -519,7 +519,7 @@ $ DATABASE_URL="<your-connection-string>" go run .
 # Restart the server. Data survives.
 
 $ curl -s http://localhost:8080/incidents | jq '.[] | .title'
-"order-service request drop"
+# Data still survives
 ```
 
 ### 5. Hints & Knowledge

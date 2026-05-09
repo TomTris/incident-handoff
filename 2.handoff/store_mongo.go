@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -34,6 +35,22 @@ func NewMongoStore(uri string, DBName string) *MongoStore {
 	}
 
 	db := client.Database(DBName)
+
+	// Sofar, it's the best, even at scale.
+	// Becaus most incidents should be resolved overtime
+	// And the heaviest case that index can help is list status = "active"
+	db.Collection(CollectionIncidents).Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{
+			{Key: "status", Value: 1},
+			{Key: "service", Value: 1},
+			{Key: "created_at", Value: 1},
+		}},
+		{Keys: bson.D{
+			{Key: "service", Value: 1},
+			{Key: "created_at", Value: 1},
+		}},
+	})
+	slog.Info("schema/indexes ensured")
 	return &MongoStore{db: db}
 }
 
@@ -89,7 +106,7 @@ func (m *MongoStore) GetIncident(ctx context.Context, id string) (Incident, erro
 }
 
 // TODO: This might cause race, find another method in critical cases (banking, ...)
-// Consequence of current method: might send wrong error code, but at least data is safe.
+// Consequence of current method: might send wrong error code, but at least data is safe, not so critical
 func (m *MongoStore) AddEntry(ctx context.Context, incidentID string, entry TimelineEntry) (TimelineEntry, error) {
 	id, err := m.nextID(ctx, "timeline_entry", entryIDPrefix)
 	if err != nil {
@@ -147,6 +164,10 @@ func (m *MongoStore) ListIncidents(ctx context.Context, incFilter IncidentFilter
 
 	var incidents []Incident
 	err = cursor.All(ctx, &incidents)
+
+	if incidents == nil {
+		incidents = []Incident{}
+	}
 	return incidents, err
 }
 

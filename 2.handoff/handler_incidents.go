@@ -113,6 +113,7 @@ func (incHandler *IncidentHandler) CreateIncident(w http.ResponseWriter, r *http
 				Message:   err.Error(),
 				RequestID: RequestID,
 			})
+			return
 		}
 		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
 			ErrorCode: MISSING_FIELD,
