@@ -9,7 +9,7 @@ type Config struct {
 	Port             string // default "8080",   env: HANDOFF_PORT
 	LogLevel         string // default "info",   env: HANDOFF_LOG_LEVEL
 	Environment      string // default "development", env: HANDOFF_ENV
-	ConnectionString string // default "mongodb://127.0.0.1:27018/?directConnection=true", env ConnectionString
+	ConnectionString string // default "mongodb://127.0.0.1:27017/?directConnection=true", env ConnectionString
 	DatabaseName     string
 }
 
@@ -18,7 +18,7 @@ func loadConfig() Config {
 		Port:             envOr("HANDOFF_PORT", "8080"),
 		LogLevel:         envOr("HANDOFF_LOG_LEVEL", "info"),
 		Environment:      envOr("HANDOFF_ENV", "development"),
-		ConnectionString: envOr("HANDOFF_CONNECT_STRING", "mongodb://127.0.0.1:27018/?directConnection=true"),
+		ConnectionString: envOr("HANDOFF_CONNECT_STRING", "mongodb://127.0.0.1:27017/?directConnection=true"),
 		DatabaseName:     envOr("HANDOFF_DB", "incident_tracker"),
 	}
 }
