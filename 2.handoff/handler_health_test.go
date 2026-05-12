@@ -9,7 +9,7 @@ import (
 
 func TestHealthCheck(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore}
 	router := getRouter(incHandler)
 
 	req := httptest.NewRequest("GET", "/healthz", nil)

@@ -15,6 +15,10 @@ type MemoryStore struct {
 	nextEntryTimelineID int
 }
 
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{incidents: make(map[string]Incident)}
+}
+
 func (m *MemoryStore) CreateIncident(ctx context.Context, inc Incident) (Incident, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

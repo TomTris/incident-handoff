@@ -608,7 +608,7 @@ $ curl -s http://localhost:8080/incidents | jq '.[] | .title'
 # PHASE 7 — WebSocket & Real-Time
 
 > **Why this phase matters**
-> Handoff's core value is real-time shared awareness. When Engineer A logs a timeline entry, Engineer B must see it instantly — not on the next page refresh. WebSocket provides a persistent bidirectional connection between client and server. Go's goroutine model makes WebSocket servers natural to build — one goroutine per connection costs ~2KB, so you can hold thousands of connections on a single server. You already understand WebSocket at the protocol level (TCP upgrade, frames, opcodes) from your networking background. Now you implement it in Go.
+> Handoff's core value is real-time shared awareness. When Engineer A logs a timeline entry, Engineer B must see it instantly — not on the next page refresh. WebSocket provides a persistent bidirectional connection between client and server. Go's goroutine model makes WebSocket servers natural to build — one goroutine per connection costs ~2KB, so you can hold thousands of connections on a single server. You (should) already understand WebSocket at the protocol level (TCP upgrade, frames, opcodes) from your networking background (Or just look it up to know the overview). Now you implement it in Go.
 
 ---
 
@@ -704,7 +704,7 @@ $ curl -s -X POST http://localhost:8080/incidents/inc-001/entries \
 
 ### 5. Hints & Knowledge
 
-- Use `github.com/gorilla/websocket` — still the most widely used Go WebSocket library. Install: `go get github.com/gorilla/websocket`.
+- Use `github.com/gorilla/websocket` — still the most widely used Go WebSocket library and recommended by offical `https://pkg.go.dev/golang.org/x/net/websocket?`. Install: `go get github.com/gorilla/websocket`.
 - `websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}` — allow all origins during development. Restrict in production.
 - Never write to a `*websocket.Conn` from multiple goroutines — that's why you need a design that funnels writes through a single goroutine per connection.
 - Ping/pong keepalive: `conn.SetReadDeadline(time.Now().Add(60 * time.Second))` and handle `PongMessage` to detect dead clients. Without this, dead connections stay registered forever.

@@ -9,7 +9,7 @@ import (
 
 func TestCreateIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore}
 	router := getRouter(incHandler)
 
 	t.Run("Normal Request", func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestCreateIncident(t *testing.T) {
 
 func TestGetIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore}
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
 	body := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
@@ -151,7 +151,7 @@ func TestGetIncident(t *testing.T) {
 
 func TestListIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore}
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
 	body := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
@@ -205,7 +205,7 @@ func TestListIncident(t *testing.T) {
 
 func TestUpdateIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore}
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
 	body1 := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
@@ -240,7 +240,7 @@ func TestUpdateIncident(t *testing.T) {
 
 func TestAddTimelineEntry(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore}
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
 	body1 := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`

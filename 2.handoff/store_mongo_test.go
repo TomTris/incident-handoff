@@ -11,7 +11,7 @@ import (
 func TestMongoCreateIncident(t *testing.T) {
 	config := loadConfig()
 	mongoStore := NewMongoStore(config.ConnectionString, config.DatabaseName)
-	incHandler := IncidentHandler{Store: mongoStore}
+	incHandler := &IncidentHandler{Store: mongoStore}
 	mongoStore.DropAll(context.Background())
 	router := getRouter(incHandler)
 
@@ -95,7 +95,7 @@ func TestMongoCreateIncident(t *testing.T) {
 func TestMongoGetIncident(t *testing.T) {
 	config := loadConfig()
 	mongoStore := NewMongoStore(config.ConnectionString, config.DatabaseName)
-	incHandler := IncidentHandler{Store: mongoStore}
+	incHandler := &IncidentHandler{Store: mongoStore}
 	mongoStore.DropAll(context.Background())
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
@@ -157,7 +157,7 @@ func TestMongoGetIncident(t *testing.T) {
 func TestMongoListIncident(t *testing.T) {
 	config := loadConfig()
 	mongoStore := NewMongoStore(config.ConnectionString, config.DatabaseName)
-	incHandler := IncidentHandler{Store: mongoStore}
+	incHandler := &IncidentHandler{Store: mongoStore}
 	mongoStore.DropAll(context.Background())
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
@@ -213,7 +213,7 @@ func TestMongoListIncident(t *testing.T) {
 func TestMongoUpdateIncident(t *testing.T) {
 	config := loadConfig()
 	mongoStore := NewMongoStore(config.ConnectionString, config.DatabaseName)
-	incHandler := IncidentHandler{Store: mongoStore}
+	incHandler := &IncidentHandler{Store: mongoStore}
 	mongoStore.DropAll(context.Background())
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()
@@ -250,7 +250,7 @@ func TestMongoUpdateIncident(t *testing.T) {
 func TestMongoAddTimelineEntry(t *testing.T) {
 	config := loadConfig()
 	mongoStore := NewMongoStore(config.ConnectionString, config.DatabaseName)
-	incHandler := IncidentHandler{Store: mongoStore}
+	incHandler := &IncidentHandler{Store: mongoStore}
 	mongoStore.DropAll(context.Background())
 	router := getRouter(incHandler)
 	rec1 := httptest.NewRecorder()

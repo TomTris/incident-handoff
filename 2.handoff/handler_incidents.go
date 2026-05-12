@@ -3,11 +3,64 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 )
 
 type IncidentHandler struct {
-	Store Store
+	Store    Store
+	Registry Registry
+}
+
+func (incHandler *IncidentHandler) CreateIncident(w http.ResponseWriter, r *http.Request) {
+	RequestID := r.Context().Value(requestIDKey).(string)
+	req := CreateIncidentRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
+			ErrorCode: BAD_REQUEST,
+			Message:   err.Error(),
+			RequestID: RequestID,
+		})
+		return
+	}
+
+	err = req.Validate()
+	if err != nil {
+		if errors.Is(err, ErrOnCall) {
+			writeError(w, http.StatusBadRequest, ErrorMessageJSON{
+				ErrorCode: BAD_REQUEST,
+				Message:   err.Error(),
+				RequestID: RequestID,
+			})
+			return
+		}
+		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
+			ErrorCode: MISSING_FIELD,
+			Message:   err.Error(),
+			RequestID: RequestID,
+		})
+		return
+	}
+
+	createdIncident, err := incHandler.Store.CreateIncident(r.Context(), Incident{
+		Title:    req.Title,
+		Service:  req.Service,
+		Severity: req.Severity,
+		OpenedBy: req.OpenedBy,
+		OnCall:   derefOrEmpty(req.OnCall),
+	})
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
+			ErrorCode: INTERNAL_SERVER_ERROR,
+			Message:   err.Error(),
+			RequestID: RequestID,
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, RequestID, createdIncident)
 }
 
 func (incHandler *IncidentHandler) GetIncident(w http.ResponseWriter, r *http.Request) {
@@ -90,57 +143,6 @@ func (incHandler *IncidentHandler) AddEntry(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusCreated, RequestID, newEntry)
-}
-
-func (incHandler *IncidentHandler) CreateIncident(w http.ResponseWriter, r *http.Request) {
-	RequestID := r.Context().Value(requestIDKey).(string)
-	req := CreateIncidentRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   err.Error(),
-			RequestID: RequestID,
-		})
-		return
-	}
-
-	err = req.Validate()
-	if err != nil {
-		if errors.Is(err, ErrOnCall) {
-			writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-				ErrorCode: BAD_REQUEST,
-				Message:   err.Error(),
-				RequestID: RequestID,
-			})
-			return
-		}
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: MISSING_FIELD,
-			Message:   err.Error(),
-			RequestID: RequestID,
-		})
-		return
-	}
-
-	createdIncident, err := incHandler.Store.CreateIncident(r.Context(), Incident{
-		Title:    req.Title,
-		Service:  req.Service,
-		Severity: req.Severity,
-		OpenedBy: req.OpenedBy,
-		OnCall:   derefOrEmpty(req.OnCall),
-	})
-
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
-			ErrorCode: INTERNAL_SERVER_ERROR,
-			Message:   err.Error(),
-			RequestID: RequestID,
-		})
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, RequestID, createdIncident)
 }
 
 func (incHandler *IncidentHandler) ListIncidents(w http.ResponseWriter, r *http.Request) {
@@ -236,4 +238,34 @@ func (incHandler *IncidentHandler) GetHandoffBrief(w http.ResponseWriter, r *htt
 		return
 	}
 	writeJSON(w, http.StatusOK, RequestID, buildHandoffBrief(inc))
+}
+
+// Chat Structure
+// Main: Registry with many hubs.
+// 1 hub is for 1 incident, has many clients, 1 broadcast, 1 register list and 1 unregister list
+
+// Registry
+func (incHandler *IncidentHandler) HandleIncidentWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		RequestID := r.Context().Value(requestIDKey).(string)
+		writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
+			ErrorCode: INTERNAL_SERVER_ERROR,
+			Message:   err.Error(),
+			RequestID: RequestID,
+		})
+		return
+	}
+	fmt.Println(1)
+	incidentID := r.PathValue("id")
+	fmt.Println(2)
+	client := newClient(incidentID, conn)
+	fmt.Println(3)
+	client.joinRegistry(&incHandler.Registry)
+	fmt.Println(4)
+
+	go client.writePump()
+	fmt.Println(5)
+	go client.readPump()
+	fmt.Println(6)
 }

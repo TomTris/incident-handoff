@@ -2,7 +2,7 @@ package main
 
 import "net/http"
 
-func getRouter(incHandler IncidentHandler) http.Handler {
+func getRouter(incHandler *IncidentHandler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /incidents", incHandler.CreateIncident)
 	mux.HandleFunc("POST /incidents/{id}/entries", incHandler.AddEntry)
@@ -11,6 +11,7 @@ func getRouter(incHandler IncidentHandler) http.Handler {
 	mux.HandleFunc("GET /incidents/{id}/handoff", incHandler.GetHandoffBrief)
 	mux.HandleFunc("GET /healthz", healthCheck)
 	mux.HandleFunc("PATCH /incidents/{id}", incHandler.UpdateIncident)
+	mux.HandleFunc("GET /incidents/{id}/ws", incHandler.HandleIncidentWebSocket)
 	router := RequestIDMiddleware(LoggingMiddleware(CORSMiddleware(TimeoutMiddleware(mux))))
 	return router
 }
