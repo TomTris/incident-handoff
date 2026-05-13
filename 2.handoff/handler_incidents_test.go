@@ -2,17 +2,23 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestCreateIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore, Registry: NewRegistry()}
 	router := getRouter(incHandler)
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
 
 	t.Run("Normal Request", func(t *testing.T) {
+
 		body := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
 		req := httptest.NewRequest("POST", "/incidents", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -50,7 +56,6 @@ func TestCreateIncident(t *testing.T) {
 			t.Errorf("OpenedBy expect %s got %s", expect.OpenedBy, got.OpenedBy)
 		}
 	})
-
 	tests := []struct {
 		name         string
 		body         string
@@ -91,8 +96,10 @@ func TestCreateIncident(t *testing.T) {
 
 func TestGetIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore, Registry: NewRegistry()}
 	router := getRouter(incHandler)
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
 	rec1 := httptest.NewRecorder()
 	body := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
 	req1 := httptest.NewRequest("POST", "/incidents", strings.NewReader(body))
@@ -151,8 +158,10 @@ func TestGetIncident(t *testing.T) {
 
 func TestListIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore, Registry: NewRegistry()}
 	router := getRouter(incHandler)
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
 	rec1 := httptest.NewRecorder()
 	body := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
 	req1 := httptest.NewRequest("POST", "/incidents", strings.NewReader(body))
@@ -205,8 +214,10 @@ func TestListIncident(t *testing.T) {
 
 func TestUpdateIncident(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore, Registry: NewRegistry()}
 	router := getRouter(incHandler)
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
 	rec1 := httptest.NewRecorder()
 	body1 := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
 	req1 := httptest.NewRequest("POST", "/incidents", strings.NewReader(body1))
@@ -240,8 +251,10 @@ func TestUpdateIncident(t *testing.T) {
 
 func TestAddTimelineEntry(t *testing.T) {
 	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
-	incHandler := IncidentHandler{Store: &memoryStore}
+	incHandler := &IncidentHandler{Store: &memoryStore, Registry: NewRegistry()}
 	router := getRouter(incHandler)
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
 	rec1 := httptest.NewRecorder()
 	body1 := `{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`
 	req1 := httptest.NewRequest("POST", "/incidents", strings.NewReader(body1))
@@ -311,7 +324,7 @@ func TestAddTimelineEntry(t *testing.T) {
 			t.Errorf("Code expected %d, got %d", 404, rec2.Code)
 		}
 	})
-	t.Run("Fail addEntry conficht", func(t *testing.T) {
+	t.Run("Fail addEntry conflict", func(t *testing.T) {
 		rec2 := httptest.NewRecorder()
 		body := `{"status":"resolved"}`
 		req2 := httptest.NewRequest("PATCH", "/incidents/INC-1", strings.NewReader(body))
@@ -333,5 +346,86 @@ func TestAddTimelineEntry(t *testing.T) {
 		}
 
 	})
+}
 
+func TestHandleIncidentWebSocket(t *testing.T) {
+	memoryStore := MemoryStore{incidents: make(map[string]Incident)}
+	incHandler := &IncidentHandler{Store: &memoryStore, Registry: NewRegistry()}
+	router := getRouter(incHandler)
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	_, err := http.Post(
+		srv.URL+"/incidents",
+		"application/json",
+		strings.NewReader(`{"title": "order-service request drop", "service": "order-service", "severity": "SEV1", "opened_by": "Anh Nguyen"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/incidents/INC-1/ws"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	t.Run("Websocket Normal addEntry ", func(t *testing.T) {
+		_, err := http.Post(
+			srv.URL+"/incidents/INC-1/entries",
+			"application/json",
+			strings.NewReader(`{"author":"Anh Nguyen","type":"observation","text":"Connection pool exhaustion. Pool at 100/100."}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var got map[string]any
+		json.Unmarshal(msg, &got)
+
+		if got["type"] != "new_entry" {
+			t.Errorf("type: got %s", got["type"])
+		}
+		if got["incident_id"] != "INC-1" {
+			t.Errorf("incident_id: got %s", got["incident_id"])
+		}
+
+		entry := got["entry"].(map[string]interface{})
+		if entry["author"] != "Anh Nguyen" {
+			t.Errorf("author: got %s", entry["author"])
+		}
+		if entry["type"] != "observation" {
+			t.Errorf("type: got %s", entry["type"])
+		}
+	})
+	t.Run("Websocket UpdateIncident ", func(t *testing.T) {
+		req, err := http.NewRequest("PATCH",
+			srv.URL+"/incidents/INC-1",
+			strings.NewReader(`{"status":"resolved"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if string(msg) != `{"type":"state_change","incident_id":"INC-1","update":{"status":"resolved","severity":null,"on_call":null}}` {
+			t.Errorf("wrong msg")
+		}
+
+	})
 }

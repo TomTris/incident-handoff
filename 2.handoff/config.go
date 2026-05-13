@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type Config struct {
@@ -30,6 +32,15 @@ func envOr(envKey string, defaultValue string) string {
 	}
 	return envValue
 }
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+var (
+	newline = []byte{'\n'}
+	space   = []byte{' '}
+)
 
 const (
 	timeout = time.Duration(5 * time.Second)

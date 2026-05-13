@@ -12,28 +12,31 @@ import (
 	"time"
 )
 
+func NewStore(conf Config) Store {
+	if conf.ConnectionString != "" {
+		slog.Info("using mongo store", "db", conf.DatabaseName)
+		return NewMongoStore(conf.ConnectionString, conf.DatabaseName)
+	}
+	slog.Info("no connection string, using in-memory store")
+	return NewMemoryStore()
+}
+
 func main() {
 	config := loadConfig()
-	var store Store
-	var storeType string
-	if config.ConnectionString != "" {
-		store = NewMongoStore(config.ConnectionString, config.DatabaseName)
-		storeType = "MongoStore"
-	} else {
-		store = &MemoryStore{incidents: make(map[string]Incident)}
-		slog.Info("no connection string, using in-memory store")
-		storeType = "MemoryStore"
-	}
-	incHandler := IncidentHandler{Store: store}
-	router := getRouter(incHandler)
+	store := NewStore(config)
+	registry := NewRegistry()
+	incHandler := IncidentHandler{Store: store, Registry: registry}
+	router := getRouter(&incHandler)
 
 	srv := http.Server{
 		Addr:    ":" + config.Port,
 		Handler: router,
 	}
+	go incHandler.Registry.run()
+	defer close(incHandler.Registry.done)
 
 	go func() {
-		slog.Info(fmt.Sprintf("server starting port=%s, store=%s", srv.Addr, storeType))
+		slog.Info(fmt.Sprintf("server starting port=%s", srv.Addr))
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)

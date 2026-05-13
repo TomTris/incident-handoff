@@ -54,9 +54,9 @@ Full curriculum with all challenge specifications: [`fullstack-engineering-curri
 - [x] Phase 2 — Interfaces & Type System
 - [x] Phase 3 — Goroutines & Channels
 - [x] Phase 4 — Memory & Performance
-- [ ] Phase 5 — Production Go HTTP Service
-- [ ] Phase 6 — PostgreSQL Integration
-- [ ] Phase 7 — WebSocket & Real-Time
+- [x] Phase 5 — Production Go HTTP Service
+- [x] Phase 6 — PostgreSQL Integration
+- [x] Phase 7 — WebSocket & Real-Time
 - [ ] Phase 8 — Observability & Feature Flags
 - [ ] Phase 9 — Authentication
 - [ ] Phase 10 — Code Review & Pressure Test

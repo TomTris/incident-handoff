@@ -14,7 +14,6 @@ func TestWriteJson(t *testing.T) {
 		requestID string
 		v         any
 	}{
-
 		{"200", 200, "test-inc-id-77", "777"},
 		{"200", 200, "test-inc-id-78", map[string]string{"777": "999"}},
 		{"400", 400, "test-inc-id-79", ErrorMessageJSON{
