@@ -129,12 +129,13 @@ func (c *CreateIncidentRequest) Validate() error {
 }
 
 type HandoffBrief struct {
-	Severity      string          `json:"severity" bson:"severity"`
-	Status        string          `json:"status" bson:"status"`
-	Service       string          `json:"service" bson:"service"`
-	TotalEntry    int             `json:"total_entry" bson:"total_entry"`
-	ElapsedMinute int             `json:"elapsed_minute" bson:"elapsed_minute"`
-	TakenActions  []TimelineEntry `json:"taken_actions" bson:"taken_actions"`
-	OpenQuestion  []TimelineEntry `json:"open_question" bson:"open_question"`
-	CreatedAt     time.Time       `json:"created_at" bson:"created_at"`
+	Severity      string          `json:"severity"`
+	Status        string          `json:"status"`
+	Service       string          `json:"service"`
+	TotalEntry    int             `json:"total_entry"`
+	ElapsedMinute int             `json:"elapsed_minute"`
+	TakenActions  []TimelineEntry `json:"taken_actions"`
+	OpenQuestion  []TimelineEntry `json:"open_question"`
+	HandoffCount  int             `json:"handoff_count"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
