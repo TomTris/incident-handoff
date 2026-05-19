@@ -5,6 +5,15 @@ import (
 	"net/http"
 )
 
+type AppResponse struct {
+	Status int
+	Body   any
+}
+
+func newAppResponse(status int, body any) *AppResponse {
+	return &AppResponse{Status: status, Body: body}
+}
+
 func writeJSON(w http.ResponseWriter, status int, requestID string, v any) {
 	_, err := json.Marshal(v)
 	if err != nil {
@@ -19,5 +28,7 @@ func writeJSON(w http.ResponseWriter, status int, requestID string, v any) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if v != nil {
+		json.NewEncoder(w).Encode(v)
+	}
 }

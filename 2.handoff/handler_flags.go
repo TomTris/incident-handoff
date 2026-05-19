@@ -6,117 +6,68 @@ import (
 	"net/http"
 )
 
-func (incHandler *IncidentHandler) CreateFlag(w http.ResponseWriter, r *http.Request) {
+func (incHandler *IncidentHandler) CreateFlag(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
 	f := FeatureFlag{}
+	if err := json.NewDecoder(r.Body).Decode(&f); err != nil {
+		return nil, BadRequest(err)
+	}
+	if err := f.Validate(); err != nil {
+		return nil, BadRequest(err)
+	}
+	if err := incHandler.FlagStore.Create(f); err != nil {
+		if errors.Is(err, ErrFlagAlreadyExist) {
+			return nil, Conflict(err)
+		}
+		return nil, InternalServerError(err)
+	}
 
-	err := json.NewDecoder(r.Body).Decode(&f)
-	requestID := r.Context().Value(requestIDKey).(string)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   ErrBadRequest.Error(),
-			RequestID: requestID,
-		})
-		return
-	}
-	err = f.Validate()
-	if err != nil {
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   err.Error(),
-			RequestID: requestID,
-		})
-		return
-	}
-	err = incHandler.FlagStore.Create(f)
-	if errors.Is(err, ErrFlagAlreadyExist) {
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   err.Error(),
-			RequestID: requestID,
-		})
-	}
-	writeJSON(w, http.StatusCreated, requestID, f)
+	return newAppResponse(http.StatusCreated, f), nil
 }
 
-func (incHandler *IncidentHandler) UpdateFlag(w http.ResponseWriter, r *http.Request) {
+func (incHandler *IncidentHandler) UpdateFlag(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
 	u := FeatureFlagUpdate{}
-
-	requestID := r.Context().Value(requestIDKey).(string)
-	err := json.NewDecoder(r.Body).Decode(&u)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   ErrBadRequest.Error(),
-			RequestID: requestID,
-		})
-		return
+	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+		return nil, BadRequest(err)
 	}
 
 	u.Name = r.PathValue("name")
-	err = u.Validate()
+	if err := u.Validate(); err != nil {
+		return nil, BadRequest(err)
+	}
+
+	if err := incHandler.FlagStore.Update(u); err != nil {
+		if errors.Is(err, ErrFlagNotfound) {
+			return nil, NotFound(err)
+		}
+		return nil, InternalServerError(err)
+	}
+
+	return newAppResponse(http.StatusNoContent, nil), nil
+}
+
+func (incHandler *IncidentHandler) ListAllFlag(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+	allFlags, err := incHandler.FlagStore.AllFlags()
 	if err != nil {
-		writeError(w, http.StatusBadRequest, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   err.Error(),
-			RequestID: requestID,
-		})
-		return
+		return nil, InternalServerError(err)
 	}
-
-	// flag Store
-	err = incHandler.FlagStore.Update(u)
-	if errors.Is(err, ErrFlagNotfound) {
-		writeError(w, http.StatusNotFound, ErrorMessageJSON{
-			ErrorCode: FLAG_NOT_FOUND,
-			Message:   ErrFlagNotfound.Error(),
-			RequestID: requestID,
-		})
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	return newAppResponse(http.StatusOK, allFlags), nil
 }
 
-func (incHandler *IncidentHandler) ListAllFlag(w http.ResponseWriter, r *http.Request) {
-	requestID := r.Context().Value(requestIDKey).(string)
-	allFlags := incHandler.FlagStore.AllFlags()
-	writeJSON(w, http.StatusOK, requestID, allFlags)
-}
-
-func (incHandler *IncidentHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
-	requestID := r.Context().Value(requestIDKey).(string)
+func (incHandler *IncidentHandler) Evaluate(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
 	flagName := r.PathValue("name")
 	userID := r.URL.Query().Get("user_id")
 
-	// Validate
 	if userID == "" {
-		writeError(w, http.StatusNotFound, ErrorMessageJSON{
-			ErrorCode: BAD_REQUEST,
-			Message:   ErrBadRequest.Error(),
-			RequestID: requestID,
-		})
-		return
+		return nil, BadRequest(errors.New("empty user_id"))
 	}
 
-	// evaluate and answer
 	flagAnswer, err := incHandler.FlagStore.Evaluate(flagName, userID)
 	if err != nil {
 		if errors.Is(err, ErrFlagNotfound) {
-			writeError(w, http.StatusNotFound, ErrorMessageJSON{
-				ErrorCode: FLAG_NOT_FOUND,
-				Message:   ErrBadRequest.Error(),
-				RequestID: requestID,
-			})
-		} else {
-			writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
-				ErrorCode: INTERNAL_SERVER_ERROR,
-				Message:   err.Error(),
-				RequestID: requestID,
-			})
+			return nil, NotFound(err)
 		}
-		return
+		return nil, InternalServerError(err)
 	}
 
-	writeJSON(w, http.StatusOK, requestID, flagAnswer)
+	return newAppResponse(http.StatusOK, flagAnswer), nil
 }

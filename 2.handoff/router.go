@@ -10,12 +10,12 @@ import (
 
 func getRouter(incHandler *IncidentHandler, mongoClient *mongo.Client, promRegistry *prometheus.Registry) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /incidents", incHandler.CreateIncident)
-	mux.HandleFunc("POST /incidents/{id}/entries", incHandler.AddEntry)
-	mux.HandleFunc("GET /incidents/{id}", incHandler.GetIncident)
-	mux.HandleFunc("GET /incidents", incHandler.ListIncidents)
-	mux.HandleFunc("GET /incidents/{id}/handoff", incHandler.GetHandoffBrief)
-	mux.HandleFunc("PATCH /incidents/{id}", incHandler.UpdateIncident)
+	mux.HandleFunc("POST /incidents", ResponseMiddleware(incHandler.CreateIncident))
+	mux.HandleFunc("POST /incidents/{id}/entries", ResponseMiddleware(incHandler.AddEntry))
+	mux.HandleFunc("GET /incidents/{id}", ResponseMiddleware(incHandler.GetIncident))
+	mux.HandleFunc("GET /incidents", ResponseMiddleware(incHandler.ListIncidents))
+	mux.HandleFunc("GET /incidents/{id}/handoff", ResponseMiddleware(incHandler.GetHandoffBrief))
+	mux.HandleFunc("PATCH /incidents/{id}", ResponseMiddleware(incHandler.UpdateIncident))
 	mux.HandleFunc("GET /incidents/{id}/ws", incHandler.HandleIncidentWebSocket)
 
 	mux.HandleFunc("GET /healthz", healthCheck)

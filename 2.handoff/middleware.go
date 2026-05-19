@@ -118,3 +118,29 @@ func RequestIDMiddleware(nextHandler http.Handler) http.Handler {
 		nextHandler.ServeHTTP(w, r.WithContext(ctxWithNewRequestID))
 	})
 }
+
+func ResponseMiddleware(next func(http.ResponseWriter, *http.Request) (*AppResponse, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Context().Value(requestIDKey).(string)
+		res, err := next(w, r)
+
+		if err != nil {
+			var appErr AppError
+			if errors.As(err, &appErr) {
+				writeError(w, appErr.Status, ErrorMessageJSON{
+					ErrorCode: appErr.Code,
+					Message:   appErr.Err.Error(),
+					RequestID: requestID,
+				})
+			} else {
+				writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
+					ErrorCode: "INTERNAL_SERVER_ERROR",
+					Message:   "Error Type not detected",
+					RequestID: requestID,
+				})
+			}
+			return
+		}
+		writeJSON(w, res.Status, requestID, res.Body)
+	}
+}

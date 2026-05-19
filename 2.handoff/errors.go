@@ -5,6 +5,29 @@ import (
 	"net/http"
 )
 
+type AppError struct {
+	Status int
+	Code   string
+	Err    error
+}
+
+func (e AppError) Error() string { return e.Err.Error() }
+
+func BadRequest(err error) error {
+	return &AppError{Status: http.StatusBadRequest, Code: "BAD_REQUEST", Err: err}
+}
+func InternalServerError(err error) error {
+	return &AppError{Status: http.StatusInternalServerError, Code: "INTERNAL_ERROR", Err: err}
+}
+
+func NotFound(err error) error {
+	return &AppError{Status: http.StatusNotFound, Code: "INTERNAL_ERROR", Err: err}
+}
+
+func Conflict(err error) error {
+	return &AppError{Status: http.StatusConflict, Code: "INTERNAL_ERROR", Err: err}
+}
+
 type ErrorMessageJSON struct {
 	ErrorCode string `json:"code" bson:"code"`
 	Message   string `json:"message" bson:"message"`

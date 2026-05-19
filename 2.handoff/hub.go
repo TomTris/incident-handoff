@@ -1,9 +1,6 @@
 package main
 
 type Hub struct {
-	// registry *Registry
-
-	// incidentID string
 	clients    map[*Client]bool
 	broadcast  chan []byte
 	register   chan *Client
@@ -13,7 +10,6 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		// incidentID: incidentID,
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client, 8),
 		unregister: make(chan *Client, 8),

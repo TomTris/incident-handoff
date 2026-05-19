@@ -21,7 +21,7 @@ func (flagStore *FlagStore) Create(f FeatureFlag) error {
 	defer flagStore.m.Unlock()
 	_, ok := flagStore.Flags[f.Name]
 	if ok == true {
-		return ErrFlagAlreadyExist
+		return ErrIncidentConflict
 	}
 	flagStore.Flags[f.Name] = f
 	return nil
@@ -44,7 +44,7 @@ func (flagStore *FlagStore) Update(u FeatureFlagUpdate) error {
 	return nil
 }
 
-func (flagStore *FlagStore) AllFlags() []FeatureFlag {
+func (flagStore *FlagStore) AllFlags() ([]FeatureFlag, error) {
 	flagStore.m.Lock()
 	defer flagStore.m.Unlock()
 
@@ -52,7 +52,7 @@ func (flagStore *FlagStore) AllFlags() []FeatureFlag {
 	for _, f := range flagStore.Flags {
 		flags = append(flags, f)
 	}
-	return flags
+	return flags, nil
 }
 
 func (flagStore *FlagStore) Evaluate(flagName string, userID string) (*FlagEvaluateAnswer, error) {
