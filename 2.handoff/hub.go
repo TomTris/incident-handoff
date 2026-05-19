@@ -29,7 +29,7 @@ func (h *Hub) run() {
 			h.clients[client] = true
 		case client := <-h.unregister:
 			_, ok := h.clients[client]
-			if ok == false {
+			if ok == true {
 				delete(h.clients, client)
 				close(client.send)
 			}

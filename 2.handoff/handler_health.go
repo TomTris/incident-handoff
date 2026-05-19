@@ -27,6 +27,7 @@ func readyCheck(client *mongo.Client) http.HandlerFunc {
 				Message:   err.Error(),
 				RequestID: r.Context().Value(requestIDKey).(string),
 			})
+			return
 		}
 		writeJSON(w, 200, r.Context().Value(requestIDKey).(string), map[string]string{"status": "ready"})
 	}
