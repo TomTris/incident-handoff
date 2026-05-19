@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -10,6 +12,8 @@ import (
 
 const connectionDBString = "mongodb://127.0.0.1:27017/?directConnection=true"
 const DBName = "incident_tracker"
+
+func strPtr(s string) *string { return &s }
 
 func setupMongoTestEnv(t *testing.T) *MongoStore {
 	t.Helper()
@@ -125,10 +129,153 @@ func TestMongoStore_CreateIncident(t *testing.T) {
 			Title: "b", Service: "s", Severity: "SEV1", OpenedBy: "x",
 		})
 		if inc1.ID != "INC-1" {
-			t.Errorf("expected INC-1, got %s", inc1.ID)
+			t.Errorf("expected %s, got %s", "INC-1", inc1.ID)
 		}
 		if inc2.ID != "INC-2" {
-			t.Errorf("expected INC-2, got %s", inc2.ID)
+			t.Errorf("expected %s, got %s", "INC-2", inc2.ID)
+		}
+	})
+}
+
+func TestMongoStore_UpdateIncident(t *testing.T) {
+	ms := setupMongoTestEnv(t)
+
+	ms.CreateIncident(context.Background(), CreateIncidentRequest{
+		Title: "outage", Service: "api", Severity: "SEV1", OpenedBy: "anh",
+	})
+
+	t.Run("update status", func(t *testing.T) {
+		inc, err := ms.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+			Status: strPtr(RESOLVED),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if inc.Status != RESOLVED {
+			t.Errorf("expected %s, got %s", RESOLVED, inc.Status)
+		}
+	})
+
+	t.Run("update severity", func(t *testing.T) {
+		inc, err := ms.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+			Severity: strPtr("SEV2"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if inc.Severity != "SEV2" {
+			t.Errorf("expected SEV2, got %s", inc.Severity)
+		}
+	})
+
+	t.Run("update on_call", func(t *testing.T) {
+		inc, err := ms.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+			OnCall: strPtr("tom"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if inc.OnCall != "tom" {
+			t.Errorf("expected tom, got %s", inc.OnCall)
+		}
+	})
+
+	t.Run("multiple fields at once", func(t *testing.T) {
+		inc, err := ms.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+			Status:   strPtr(TRIGGERED),
+			Severity: strPtr("SEV3"),
+			OnCall:   strPtr("carl"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if inc.Status != TRIGGERED {
+			t.Errorf("Status expected %s, got %s", TRIGGERED, inc.Status)
+		}
+		if inc.Severity != "SEV3" {
+			t.Errorf("Severity expected SEV3, got %s", inc.Severity)
+		}
+		if inc.OnCall != "carl" {
+			t.Errorf("OnCall expected carl, got %s", inc.OnCall)
+		}
+	})
+
+	t.Run("updated_at changes", func(t *testing.T) {
+		before, _ := ms.GetIncident(context.Background(), "INC-1")
+		time.Sleep(10 * time.Millisecond) //Give Buffer to compare updated_at
+		after, _ := ms.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+			Status: strPtr(TRIGGERED),
+		})
+		if after.UpdatedAt.After(before.UpdatedAt) == false {
+			t.Error("UpdatedAt should advance")
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		_, err := ms.UpdateIncident(context.Background(), "INC-999", IncidentUpdate{
+			Status: strPtr(RESOLVED),
+		})
+		if !errors.Is(err, ErrIncidentNotFound) {
+			t.Errorf("expected ErrIncidentNotFound, got %v", err)
+		}
+	})
+}
+
+func TestMongoStore_AddEntry(t *testing.T) {
+	m := setupMongoTestEnv(t)
+
+	m.CreateIncident(context.Background(), CreateIncidentRequest{
+		Title:    "outage",
+		Service:  "api",
+		Severity: "SEV1",
+		OpenedBy: "anh",
+	})
+
+	t.Run("adds entry to existing incident", func(t *testing.T) {
+		entry, err := m.AddEntry(context.Background(), "INC-1", TimelineEntry{
+			Author: "anh",
+			Type:   "observation",
+			Text:   "pool exhausted",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry.ID != "TLE-1" {
+			t.Errorf("expected %s, got %s", "TLE-1", entry.ID)
+		}
+		if entry.Time.IsZero() {
+			t.Error("Time not set")
+		}
+	})
+	t.Run("sequential entry IDs", func(t *testing.T) {
+		entry, _ := m.AddEntry(context.Background(), "INC1", TimelineEntry{
+			Author: "anh", Type: "observation", Text: "second entry",
+		})
+		if entry.ID != "TLE-2" {
+			t.Errorf("expected %s, got %s", "TLE-2", entry.ID)
+		}
+	})
+
+	t.Run("incident not found", func(t *testing.T) {
+		_, err := m.AddEntry(context.Background(), "INC-999", TimelineEntry{
+			Author: "anh", Type: "observation", Text: "test",
+		})
+		if !errors.Is(err, ErrIncidentNotFound) {
+			t.Errorf("expected ErrIncidentNotFound, got %v", err)
+		}
+	})
+
+	t.Run("conflict on resolved incident", func(t *testing.T) {
+		// resolve the incident first
+		m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+			Status: strPtr(RESOLVED),
+		})
+
+		_, err := m.AddEntry(context.Background(), "INC-1", TimelineEntry{
+			Author: "anh", Type: "observation", Text: "too late",
+		})
+		if !errors.Is(err, ErrIncidentConflict) {
+			t.Errorf("expected ErrIncidentConflict, got %v", err)
 		}
 	})
 }

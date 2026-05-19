@@ -177,30 +177,31 @@ func (m *MongoStore) ListIncidents(ctx context.Context, incFilter IncidentFilter
 func (m *MongoStore) UpdateIncident(ctx context.Context, incidentId string, update IncidentUpdate) (Incident, error) {
 	fields := bson.M{"updated_at": time.Now()}
 
-	switch {
-	case update.Status != nil:
+	if update.Status != nil {
 		fields["status"] = *update.Status
-	case update.Severity != nil:
+	}
+	if update.Severity != nil {
 		fields["severity"] = *update.Severity
-	case update.OnCall != nil:
+	}
+	if update.OnCall != nil {
 		fields["on_call"] = *update.OnCall
 	}
 
 	col := m.db.Collection(CollectionIncidents)
-	opts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
-	var inc Incident
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	var incAfter Incident
 	err := col.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": incidentId},
 		bson.M{"$set": fields},
 		opts,
-	).Decode(&inc)
+	).Decode(&incAfter)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return inc, ErrIncidentNotFound
+			return incAfter, ErrIncidentNotFound
 		}
-		return inc, fmt.Errorf("Update Incident %s: %v", incidentId, err)
+		return incAfter, fmt.Errorf("Update Incident %s: %v", incidentId, err)
 	}
-	return inc, nil
+	return incAfter, nil
 }
