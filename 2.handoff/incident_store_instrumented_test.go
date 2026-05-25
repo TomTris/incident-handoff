@@ -115,4 +115,14 @@ func TestInstrumented(t *testing.T) {
 			t.Errorf("DbQueryDurationSeconds[update_incident] expected 1, got %v", count)
 		}
 	})
+	t.Run("Update Incident by changing status", func(t *testing.T) {
+		_, err := instrumented.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{Status: new(INVESTIGATING)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		count := historySampleCount(instrumented, "update_incident")
+		if count != 2 {
+			t.Errorf("DbQueryDurationSeconds[update_incident] expected 2, got %v", count)
+		}
+	})
 }
