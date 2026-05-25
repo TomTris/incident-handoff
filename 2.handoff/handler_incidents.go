@@ -43,7 +43,7 @@ func marshalIncidentUpdateEvent(incAfter Incident) json.RawMessage {
 	return data
 }
 
-func (incHandler *IncidentHandler) CreateIncident(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+func (incHandler *IncidentHandler) CreateIncident(r *http.Request) (*AppResponse, error) {
 	req := CreateIncidentRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, BadRequest(err)
@@ -61,20 +61,23 @@ func (incHandler *IncidentHandler) CreateIncident(w http.ResponseWriter, r *http
 	return newAppResponse(http.StatusCreated, createdIncident), nil
 }
 
-func (incHandler *IncidentHandler) GetIncident(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+func (incHandler *IncidentHandler) GetIncident(r *http.Request) (*AppResponse, error) {
 	incidentID := r.PathValue("id")
 	inc, err := incHandler.IncidentStore.GetIncident(r.Context(), incidentID)
+
 	if err != nil {
 		if errors.Is(err, ErrIncidentNotFound) {
-			return nil, BadRequest(err)
+			return nil, NotFound(err)
 		}
 		return nil, InternalServerError(err)
 	}
+
 	return newAppResponse(http.StatusOK, inc), nil
 }
 
-func (incHandler *IncidentHandler) AddEntry(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+func (incHandler *IncidentHandler) AddEntry(r *http.Request) (*AppResponse, error) {
 	timelineEntry := TimelineEntry{}
+
 	if err := json.NewDecoder(r.Body).Decode(&timelineEntry); err != nil {
 		return nil, BadRequest(err)
 	}
@@ -83,6 +86,7 @@ func (incHandler *IncidentHandler) AddEntry(w http.ResponseWriter, r *http.Reque
 	}
 	incidentID := r.PathValue("id")
 	newEntry, err := incHandler.IncidentStore.AddEntry(r.Context(), incidentID, timelineEntry)
+
 	if err != nil {
 		if errors.Is(err, ErrIncidentNotFound) {
 			return nil, NotFound(err)
@@ -92,6 +96,7 @@ func (incHandler *IncidentHandler) AddEntry(w http.ResponseWriter, r *http.Reque
 		}
 		return nil, InternalServerError(err)
 	}
+
 	incHandler.Registry.broadcast <- BroadcastMessage{
 		incidentID: incidentID,
 		msg:        marshalNewEntryEvent(incidentID, newEntry),
@@ -99,7 +104,7 @@ func (incHandler *IncidentHandler) AddEntry(w http.ResponseWriter, r *http.Reque
 	return newAppResponse(http.StatusCreated, newEntry), nil
 }
 
-func (incHandler *IncidentHandler) ListIncidents(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+func (incHandler *IncidentHandler) ListIncidents(r *http.Request) (*AppResponse, error) {
 	incidentFilter := IncidentFilter{
 		Status:  r.URL.Query().Get("status"),
 		Service: r.URL.Query().Get("service"),
@@ -116,7 +121,7 @@ func (incHandler *IncidentHandler) ListIncidents(w http.ResponseWriter, r *http.
 	return newAppResponse(http.StatusOK, filteredIncidents), nil
 }
 
-func (incHandler *IncidentHandler) UpdateIncident(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+func (incHandler *IncidentHandler) UpdateIncident(r *http.Request) (*AppResponse, error) {
 	incidentUpdate := IncidentUpdate{}
 	if err := json.NewDecoder(r.Body).Decode(&incidentUpdate); err != nil {
 		return nil, BadRequest(err)
@@ -141,15 +146,17 @@ func (incHandler *IncidentHandler) UpdateIncident(w http.ResponseWriter, r *http
 	return newAppResponse(http.StatusNoContent, nil), nil
 }
 
-func (incHandler *IncidentHandler) GetHandoffBrief(w http.ResponseWriter, r *http.Request) (*AppResponse, error) {
+func (incHandler *IncidentHandler) GetHandoffBrief(r *http.Request) (*AppResponse, error) {
 	incidentID := r.PathValue("id")
 	inc, err := incHandler.IncidentStore.GetIncident(r.Context(), incidentID)
+
 	if err != nil {
 		if errors.Is(err, ErrIncidentNotFound) {
 			return nil, NotFound(err)
 		}
 		return nil, InternalServerError(err)
 	}
+
 	userID := r.URL.Query().Get("user_id")
 	body := buildHandoffBrief(inc, incHandler.FlagEvaluator, userID)
 	return newAppResponse(http.StatusOK, body), nil
@@ -157,6 +164,7 @@ func (incHandler *IncidentHandler) GetHandoffBrief(w http.ResponseWriter, r *htt
 
 func (incHandler *IncidentHandler) HandleIncidentWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
+
 	if err != nil {
 		RequestID := r.Context().Value(requestIDKey).(string)
 		writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
@@ -166,6 +174,7 @@ func (incHandler *IncidentHandler) HandleIncidentWebSocket(w http.ResponseWriter
 		})
 		return
 	}
+
 	incidentID := r.PathValue("id")
 	client := newClient(incidentID, conn)
 	client.joinRegistry(&incHandler.Registry)

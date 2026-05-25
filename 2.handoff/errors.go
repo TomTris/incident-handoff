@@ -21,11 +21,11 @@ func InternalServerError(err error) error {
 }
 
 func NotFound(err error) error {
-	return &AppError{Status: http.StatusNotFound, Code: "INTERNAL_ERROR", Err: err}
+	return &AppError{Status: http.StatusNotFound, Code: "NOT FOUND", Err: err}
 }
 
 func Conflict(err error) error {
-	return &AppError{Status: http.StatusConflict, Code: "INTERNAL_ERROR", Err: err}
+	return &AppError{Status: http.StatusConflict, Code: "CONFLICT", Err: err}
 }
 
 type ErrorMessageJSON struct {

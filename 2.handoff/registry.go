@@ -49,7 +49,7 @@ func (r *Registry) run() {
 }
 
 func (r *Registry) joinRegistry(client *Client) {
-	wsConnections.Inc()
+	// wsConnections.Inc()
 
 	incID := client.incidentID
 	r.clientCounter[incID]++
@@ -64,7 +64,7 @@ func (r *Registry) joinRegistry(client *Client) {
 }
 
 func (r *Registry) leaveRegister(client *Client) {
-	wsConnections.Dec()
+	// wsConnections.Dec()
 
 	incID := client.incidentID
 	r.clientCounter[incID]--

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -62,5 +65,48 @@ func TestMarshalIncidentUpdateEvent(t *testing.T) {
 	}
 	if e["service"] != "test service" {
 		t.Fatalf("id expected %v, get %v", "test service", e["service"])
+	}
+}
+
+func TestGetIncidentOK(t *testing.T) {
+	store := NewMemoryIncidentStore()
+	store.CreateIncident(context.Background(), CreateIncidentRequest{
+		Title:    "test inc title",
+		Service:  "test inc service",
+		Severity: "SEV1",
+		OpenedBy: "tom",
+		OnCall:   new("tom"),
+	})
+
+	handler := IncidentHandler{IncidentStore: store}
+	req := httptest.NewRequest("GET", "/incident/INC-1", nil)
+	req.SetPathValue("id", "INC-1")
+
+	res, err := handler.GetIncident(req)
+
+	if err != nil {
+		t.Fatalf("expected no error, get error %v", err)
+	}
+	if res.Status != http.StatusOK {
+		t.Fatalf("expected status %v, get %v", http.StatusOK, res.Status)
+	}
+	inc := res.Body.(Incident)
+	if inc.ID != "INC-1" {
+		t.Fatalf("expected id %v, get %v", "INC-1", inc.ID)
+	}
+	if inc.Title != "test inc title" {
+		t.Fatalf("expected Title %v, get %v", "test inc title", inc.Title)
+	}
+	if inc.Service != "test inc service" {
+		t.Fatalf("expected Service %v, get %v", "test inc service", inc.Service)
+	}
+	if inc.Severity != "SEV1" {
+		t.Fatalf("expected Severity %v, get %v", "SEV1", inc.Severity)
+	}
+	if inc.OpenedBy != "tom" {
+		t.Fatalf("expected OpenedBy %v, get %v", "tom", inc.OpenedBy)
+	}
+	if inc.OnCall != "tom" {
+		t.Fatalf("expected OnCall %v, get %v", new("tom"), inc.OnCall)
 	}
 }

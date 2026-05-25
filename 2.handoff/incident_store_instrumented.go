@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,9 +60,6 @@ func (s *InstrumentedIncidentStore) UpdateIncident(ctx context.Context, id strin
 	timer := prometheus.NewTimer(s.metrics.DbQueryDurationSeconds.WithLabelValues("update_incident"))
 	incBefore, err := s.inner.UpdateIncident(ctx, id, update)
 	timer.ObserveDuration()
-	fmt.Printf("%v\n", update)
-	fmt.Printf("%v\n", err)
-	fmt.Printf("%v\n", update.Status)
 	if err == nil && update.Status != nil {
 		s.metrics.IncidentTotal.WithLabelValues(*update.Status).Inc()
 		s.metrics.IncidentTotal.WithLabelValues(incBefore.Status).Dec()

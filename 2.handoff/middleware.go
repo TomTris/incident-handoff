@@ -6,8 +6,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -60,11 +58,11 @@ func CORSMiddleware(nextHandler http.Handler) http.Handler {
 
 func ObservabilityMiddleware(nextHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+		// start := time.Now()
 		wrappedWriter := &statusRecorder{ResponseWriter: w, StatusCode: 200}
 
 		defer func() {
-			duration := time.Since(start)
+			// duration := time.Since(start)
 			requestID := r.Context().Value(requestIDKey).(string)
 			err := recover()
 
@@ -76,8 +74,8 @@ func ObservabilityMiddleware(nextHandler http.Handler) http.Handler {
 				// 	"duration", duration,
 				// 	requestIDKey, requestID,
 				// )
-				httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, "500").Inc()
-				httpDurationSeconds.WithLabelValues(r.Method, r.URL.Path).Observe(duration.Seconds())
+				// httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, "500").Inc()
+				// httpDurationSeconds.WithLabelValues(r.Method, r.URL.Path).Observe(duration.Seconds())
 				writeError(w, 500, ErrorMessageJSON{
 					ErrorCode: INTERNAL_SERVER_ERROR,
 					Message:   "Server panicked",
@@ -96,8 +94,8 @@ func ObservabilityMiddleware(nextHandler http.Handler) http.Handler {
 				return
 			}
 
-			httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, strconv.Itoa(wrappedWriter.StatusCode)).Inc()
-			httpDurationSeconds.WithLabelValues(r.Method, r.URL.Path).Observe(duration.Seconds())
+			// httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, strconv.Itoa(wrappedWriter.StatusCode)).Inc()
+			// httpDurationSeconds.WithLabelValues(r.Method, r.URL.Path).Observe(duration.Seconds())
 			// slog.Info("request completed",
 			// 	"method", r.Method,
 			// 	"path", r.URL.Path,
@@ -119,10 +117,10 @@ func RequestIDMiddleware(nextHandler http.Handler) http.Handler {
 	})
 }
 
-func ResponseMiddleware(next func(http.ResponseWriter, *http.Request) (*AppResponse, error)) http.HandlerFunc {
+func ResponseMiddleware(next func(*http.Request) (*AppResponse, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.Context().Value(requestIDKey).(string)
-		res, err := next(w, r)
+		res, err := next(r)
 		if err != nil {
 			var appErr *AppError
 			if errors.As(err, &appErr) {
