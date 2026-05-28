@@ -108,38 +108,45 @@ func (m *MongoIncidentStore) GetIncident(ctx context.Context, id string) (Incide
 	return inc, nil
 }
 
-// TODO: This might cause race, find another method in critical cases (banking, ...)
-// Consequence of current method: might send wrong error code, but at least data is safe, not so critical
 func (m *MongoIncidentStore) AddEntry(ctx context.Context, incidentID string, entry TimelineEntry) (TimelineEntry, error) {
 	id, err := m.nextID(ctx, "timeline_entry", entryIDPrefix)
 	if err != nil {
 		return entry, err
 	}
 
+	now := time.Now()
 	entry.ID = id
-	entry.Time = time.Now()
+	entry.Time = now
 
-	filter := bson.M{
-		"_id":    incidentID,
-		"status": bson.M{"$ne": RESOLVED},
+	isActive := bson.M{"$ne": bson.A{"$status", RESOLVED}}
+	appendEntry := bson.M{"$concatArrays": bson.A{"$entries", bson.A{entry}}}
+
+	pipeline := bson.A{
+		bson.M{"$set": bson.M{
+			"entries":    bson.M{"$cond": bson.A{isActive, appendEntry, "$entries"}},
+			"updated_at": bson.M{"$cond": bson.A{isActive, now, "$updated_at"}},
+		}},
 	}
-	update := bson.M{
-		"$push": bson.M{"entries": entry},
-		"$set":  bson.M{"updated_at": time.Now()},
+
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
+
+	var prev struct {
+		Status string `bson:"status"`
 	}
-	col := m.db.Collection(CollectionIncidents)
-	result, err := col.UpdateOne(ctx, filter, update)
-	if err != nil {
+	err = m.db.Collection(CollectionIncidents).
+		FindOneAndUpdate(ctx, bson.M{"_id": incidentID}, pipeline, opts).
+		Decode(&prev)
+
+	switch {
+	case errors.Is(err, mongo.ErrNoDocuments):
+		return entry, ErrIncidentNotFound
+	case err != nil:
 		return entry, err
-	}
-	if result.MatchedCount == 0 {
-		err = col.FindOne(ctx, bson.M{"_id": incidentID}).Err()
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return entry, ErrIncidentNotFound
-		}
+	case prev.Status == RESOLVED:
 		return entry, ErrIncidentConflict
+	default:
+		return entry, nil
 	}
-	return entry, nil
 }
 
 func (m *MongoIncidentStore) ListIncidents(ctx context.Context, incFilter IncidentFilter) ([]Incident, error) {
