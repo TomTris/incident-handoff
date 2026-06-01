@@ -17,6 +17,7 @@ type Incident struct {
 	CreatedAt time.Time       `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at" bson:"updated_at"`
 	Entries   []TimelineEntry `json:"entries" bson:"entries"`
+	Version   int             `json:"version" bson:"version"`
 }
 
 type CreateIncidentRequest struct {
@@ -24,7 +25,6 @@ type CreateIncidentRequest struct {
 	Service  string `json:"service" bson:"service"`
 	Severity string `json:"severity" bson:"severity"` // SEV1, SEV2, SEV3
 	OpenedBy string `json:"opened_by" bson:"opened_by"`
-	OnCall   string `json:"on_call,omitempty" bson:"on_call"`
 }
 
 func (c *CreateIncidentRequest) Validate() error {

@@ -67,9 +67,8 @@ func (h *IncidentHandler) CreateIncident(r *http.Request) (*AppResponse, *AppErr
 			return nil, InternalServerError(err)
 		}
 	}
-	req.OnCall = onCall
 
-	createdIncident, err := h.IncidentStore.CreateIncident(r.Context(), req)
+	createdIncident, err := h.IncidentStore.CreateIncident(r.Context(), onCall, req)
 	if err != nil {
 		return nil, InternalServerError(err)
 	}
@@ -112,23 +111,19 @@ func (h *IncidentHandler) AddEntry(r *http.Request) (*AppResponse, *AppError) {
 	if err := timelineEntry.Validate(); err != nil {
 		return nil, BadRequest(err)
 	}
-	incidentID := r.PathValue("id")
 
-	newEntry, err := h.IncidentStore.AddEntry(r.Context(), incidentID, timelineEntry)
+	newEntry, err := h.IncidentStore.AddEntry(r.Context(), inc.ID, inc.Version, timelineEntry)
 
 	if err != nil {
-		if errors.Is(err, ErrIncidentNotFound) {
-			return nil, NotFound(err)
-		}
-		if errors.Is(err, ErrIncidentConflict) {
+		if errors.Is(err, ErrIncidentVersionConflict) || errors.Is(err, ErrIncidentResolved) {
 			return nil, Conflict(err)
 		}
 		return nil, InternalServerError(err)
 	}
 
 	h.Registry.broadcast <- BroadcastMessage{
-		incidentID: incidentID,
-		msg:        marshalNewEntryEvent(incidentID, newEntry),
+		incidentID: inc.ID,
+		msg:        marshalNewEntryEvent(inc.ID, newEntry),
 	}
 
 	return newAppResponse(http.StatusCreated, newEntry), nil
@@ -172,18 +167,17 @@ func (h *IncidentHandler) UpdateIncident(r *http.Request) (*AppResponse, *AppErr
 		return nil, BadRequest(err)
 	}
 
-	incidentID := r.PathValue("id")
-	incAfter, err := h.IncidentStore.UpdateIncident(r.Context(), incidentID, incidentUpdate)
+	incAfter, err := h.IncidentStore.UpdateIncident(r.Context(), inc.ID, inc.Version, incidentUpdate)
 	if err != nil {
-		if errors.Is(err, ErrIncidentNotFound) {
-			return nil, NotFound(err)
+		if errors.Is(err, ErrIncidentVersionConflict) {
+			return nil, Conflict(err)
 		}
 		return nil, InternalServerError(err)
 	}
 
 	h.Registry.broadcast <- BroadcastMessage{
 		msg:        marshalIncidentUpdateEvent(incAfter),
-		incidentID: incidentID,
+		incidentID: inc.ID,
 	}
 	return newAppResponse(http.StatusNoContent, nil), nil
 }
@@ -200,7 +194,13 @@ func (h *IncidentHandler) GetHandoffBrief(r *http.Request) (*AppResponse, *AppEr
 	}
 
 	user := r.Context().Value(userContextKey).(UserContext)
-	body := buildHandoffBrief(inc, h.FlagEvaluator, user.ID)
+	var body HandoffBrief
+	if user.Role == "admin" {
+		userID := r.URL.Query().Get("user_id")
+		body = buildHandoffBrief(inc, h.FlagEvaluator, userID)
+	} else {
+		body = buildHandoffBrief(inc, h.FlagEvaluator, user.ID)
+	}
 	return newAppResponse(http.StatusOK, body), nil
 }
 

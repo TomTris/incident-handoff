@@ -76,7 +76,7 @@ func TestMarshalIncidentUpdateEvent(t *testing.T) {
 func TestGetIncidentOK(t *testing.T) {
 	store := NewMemoryIncidentStore()
 	validIncRequest := validCreateIncidentRequest()
-	store.CreateIncident(context.Background(), validIncRequest)
+	store.CreateIncident(context.Background(), "", validIncRequest)
 
 	handler := IncidentHandler{IncidentStore: store}
 	req := httptest.NewRequest("GET", "/incident/INC-1", nil)
@@ -131,7 +131,7 @@ func TestCreateIncident(t *testing.T) {
 
 	incCreateRequest := validCreateIncidentRequest()
 	store := NewMemoryIncidentStore()
-	store.CreateIncident(context.Background(), incCreateRequest)
+	store.CreateIncident(context.Background(), "", incCreateRequest)
 	onCallHandler := &OnCallHandler{Store: NewOnCallStore()}
 	handler := IncidentHandler{
 		IncidentStore: store,
@@ -170,13 +170,13 @@ func TestListIncident(t *testing.T) {
 
 	store := NewMemoryIncidentStore()
 	incCreateRequest := validCreateIncidentRequest()
-	store.CreateIncident(context.Background(), incCreateRequest)
+	store.CreateIncident(context.Background(), "", incCreateRequest)
 	incCreateRequest.Title = "123"
-	store.CreateIncident(context.Background(), incCreateRequest)
+	store.CreateIncident(context.Background(), "", incCreateRequest)
 	incCreateRequest.Service = "no_services"
-	store.CreateIncident(context.Background(), incCreateRequest)
+	store.CreateIncident(context.Background(), "", incCreateRequest)
 	incCreateRequest.Severity = "SEV3"
-	store.CreateIncident(context.Background(), incCreateRequest)
+	store.CreateIncident(context.Background(), "", incCreateRequest)
 
 	handler := IncidentHandler{IncidentStore: store}
 
@@ -253,7 +253,7 @@ func newTestServer(t *testing.T) (*httptest.Server, string, string) {
 	engineerTokenSigned, _ := IssueToken(seedUsers[0], []byte(jwt_secret), ttl, time.Now())
 	adminTokenSigned, _ := IssueToken(seedUsers[2], []byte(jwt_secret), ttl, time.Now())
 
-	memStore.CreateIncident(context.Background(), validCreateIncidentRequest())
+	memStore.CreateIncident(context.Background(), "", validCreateIncidentRequest())
 
 	router := getRouter(&incHandler, &flagHandler, authHandler, onCallHandler, nil, promRegistry, httpMetrics)
 	return httptest.NewServer(router), engineerTokenSigned, adminTokenSigned
@@ -424,16 +424,54 @@ func TestUpdateIncident(t *testing.T) {
 	})
 }
 
-func TestGetHandoffBrief(t *testing.T) {
+func TestGetHandoffBriefAdmin(t *testing.T) {
 	store := NewMemoryIncidentStore()
 	validIncRequest := validCreateIncidentRequest()
-	store.CreateIncident(context.Background(), validIncRequest)
+	store.CreateIncident(context.Background(), "", validIncRequest)
 
 	handler := IncidentHandler{IncidentStore: store}
 	req := httptest.NewRequest("GET", "/incidents/INC-1/handoff?user_id=tom", nil)
 	req.SetPathValue("id", "INC-1")
+	ctx := context.WithValue(req.Context(), userContextKey, UserContext{
+		ID:       "Usr-1",
+		Username: "username_admin",
+		Role:     "admin",
+	})
 
-	appRes, appErr := handler.GetHandoffBrief(req)
+	appRes, appErr := handler.GetHandoffBrief(req.WithContext(ctx))
+	if appErr != nil {
+		t.Fatalf("expected no error, get %v", appErr.Error())
+	}
+	if appRes.Status != http.StatusOK {
+		t.Fatalf("expected status %v, get %v", http.StatusOK, appRes.Status)
+	}
+
+	bodyRaw, err := json.Marshal(appRes.Body)
+	if err != nil {
+		t.Fatalf("expected not nil, get %v", err.Error())
+	}
+	var body HandoffBrief
+	err = json.Unmarshal(bodyRaw, &body)
+	if err != nil {
+		t.Fatalf("expected not nil, get %v", err.Error())
+	}
+}
+
+func TestGetHandoffBriefEngineer(t *testing.T) {
+	store := NewMemoryIncidentStore()
+	validIncRequest := validCreateIncidentRequest()
+	store.CreateIncident(context.Background(), "", validIncRequest)
+
+	handler := IncidentHandler{IncidentStore: store}
+	req := httptest.NewRequest("GET", "/incidents/INC-1/handoff", nil)
+	req.SetPathValue("id", "INC-1")
+	ctx := context.WithValue(req.Context(), userContextKey, UserContext{
+		ID:       "Usr-1",
+		Username: "username_engineer",
+		Role:     "engineer",
+	})
+
+	appRes, appErr := handler.GetHandoffBrief(req.WithContext(ctx))
 	if appErr != nil {
 		t.Fatalf("expected no error, get %v", appErr.Error())
 	}

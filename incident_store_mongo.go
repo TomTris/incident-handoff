@@ -68,22 +68,23 @@ func (m *MongoIncidentStore) nextID(ctx context.Context, name string, prefix str
 	return prefix + strconv.Itoa(result.Seq), nil
 }
 
-func (m *MongoIncidentStore) CreateIncident(ctx context.Context, req CreateIncidentRequest) (Incident, error) {
+func (m *MongoIncidentStore) CreateIncident(ctx context.Context, onCall string, incReq CreateIncidentRequest) (Incident, error) {
 	id, err := m.nextID(ctx, "incident", incidentIDPrefix)
 	if err != nil {
 		return Incident{}, errors.New("Failed to get next incident Id: " + err.Error())
 	}
 	inc := Incident{
 		ID:        id,
-		Title:     req.Title,
-		Service:   req.Service,
-		Severity:  req.Severity,
-		OpenedBy:  req.OpenedBy,
-		OnCall:    req.OnCall,
+		Title:     incReq.Title,
+		Service:   incReq.Service,
+		Severity:  incReq.Severity,
+		OpenedBy:  incReq.OpenedBy,
+		OnCall:    onCall,
 		Status:    TRIGGERED,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Entries:   []TimelineEntry{},
+		Version:   1,
 	}
 
 	col := m.db.Collection(CollectionIncidents)
@@ -108,7 +109,7 @@ func (m *MongoIncidentStore) GetIncident(ctx context.Context, id string) (Incide
 	return inc, nil
 }
 
-func (m *MongoIncidentStore) AddEntry(ctx context.Context, incidentID string, entry TimelineEntry) (TimelineEntry, error) {
+func (m *MongoIncidentStore) AddEntry(ctx context.Context, incID string, expectedIncVersion int, entry TimelineEntry) (TimelineEntry, error) {
 	id, err := m.nextID(ctx, "timeline_entry", entryIDPrefix)
 	if err != nil {
 		return entry, err
@@ -120,10 +121,14 @@ func (m *MongoIncidentStore) AddEntry(ctx context.Context, incidentID string, en
 
 	isActive := bson.M{"$ne": bson.A{"$status", RESOLVED}}
 	appendEntry := bson.M{"$concatArrays": bson.A{"$entries", bson.A{entry}}}
-
+	filter := bson.M{
+		"_id":     incID,
+		"version": expectedIncVersion,
+	}
 	pipeline := bson.A{
 		bson.M{"$set": bson.M{
 			"entries":    bson.M{"$cond": bson.A{isActive, appendEntry, "$entries"}},
+			"version":    bson.M{"$cond": bson.A{isActive, expectedIncVersion + 1, "$version"}},
 			"updated_at": bson.M{"$cond": bson.A{isActive, now, "$updated_at"}},
 		}},
 	}
@@ -134,16 +139,16 @@ func (m *MongoIncidentStore) AddEntry(ctx context.Context, incidentID string, en
 		Status string `bson:"status"`
 	}
 	err = m.db.Collection(CollectionIncidents).
-		FindOneAndUpdate(ctx, bson.M{"_id": incidentID}, pipeline, opts).
+		FindOneAndUpdate(ctx, filter, pipeline, opts).
 		Decode(&prev)
 
 	switch {
 	case errors.Is(err, mongo.ErrNoDocuments):
-		return entry, ErrIncidentNotFound
+		return entry, ErrIncidentVersionConflict
 	case err != nil:
 		return entry, err
 	case prev.Status == RESOLVED:
-		return entry, ErrIncidentConflict
+		return entry, ErrIncidentResolved
 	default:
 		return entry, nil
 	}
@@ -181,9 +186,11 @@ func (m *MongoIncidentStore) ListIncidents(ctx context.Context, incFilter Incide
 	return incidents, err
 }
 
-func (m *MongoIncidentStore) UpdateIncident(ctx context.Context, incidentId string, update IncidentUpdate) (Incident, error) {
-	fields := bson.M{"updated_at": time.Now()}
-
+func (m *MongoIncidentStore) UpdateIncident(ctx context.Context, incID string, expectedIncVersion int, update IncidentUpdate) (Incident, error) {
+	fields := bson.M{
+		"updated_at": time.Now(),
+		"version":    expectedIncVersion + 1,
+	}
 	if update.Status != nil {
 		fields["status"] = *update.Status
 	}
@@ -194,21 +201,26 @@ func (m *MongoIncidentStore) UpdateIncident(ctx context.Context, incidentId stri
 		fields["on_call"] = *update.OnCall
 	}
 
+	filter := bson.M{
+		"_id":     incID,
+		"version": expectedIncVersion,
+	}
+
 	col := m.db.Collection(CollectionIncidents)
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var incAfter Incident
 	err := col.FindOneAndUpdate(
 		ctx,
-		bson.M{"_id": incidentId},
+		filter,
 		bson.M{"$set": fields},
 		opts,
 	).Decode(&incAfter)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return incAfter, ErrIncidentNotFound
+			return incAfter, ErrIncidentVersionConflict
 		}
-		return incAfter, fmt.Errorf("Update Incident %s: %v", incidentId, err)
+		return incAfter, fmt.Errorf("Update Incident %s: %v", incID, err)
 	}
 	return incAfter, nil
 }

@@ -9,16 +9,16 @@ import (
 
 func runStoreContractsTests(t *testing.T, makeStore func(t *testing.T) IncidentStore) {
 	t.Run("CreateIncident", func(t *testing.T) { TestIncidentStoreCreateIncident(t, makeStore) })
-	t.Run("CreateIncident", func(t *testing.T) { TestIncidentStoreUpdateIncident(t, makeStore) })
-	t.Run("CreateIncident", func(t *testing.T) { TestIncidentStoreAddEntry(t, makeStore) })
-	t.Run("CreateIncident", func(t *testing.T) { TestIncidentStoreListIncidents(t, makeStore) })
+	t.Run("UpdateIncident", func(t *testing.T) { TestIncidentStoreUpdateIncident(t, makeStore) })
+	t.Run("AddEntry", func(t *testing.T) { TestIncidentStoreAddEntry(t, makeStore) })
+	t.Run("ListIncidents", func(t *testing.T) { TestIncidentStoreListIncidents(t, makeStore) })
 }
 
 func TestIncidentStoreCreateIncident(t *testing.T, makeStore func(t *testing.T) IncidentStore) {
 	m := makeStore(t)
 
 	t.Run("normal creation", func(t *testing.T) {
-		inc, err := m.CreateIncident(context.Background(), CreateIncidentRequest{
+		inc, err := m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 			Title:    "outage",
 			Service:  "api",
 			Severity: "SEV1",
@@ -33,7 +33,7 @@ func TestIncidentStoreCreateIncident(t *testing.T, makeStore func(t *testing.T) 
 	})
 
 	t.Run("sets correct defaults", func(t *testing.T) {
-		inc, _ := m.CreateIncident(context.Background(), CreateIncidentRequest{
+		inc, _ := m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 			Title:    "outage3",
 			Service:  "api",
 			Severity: "SEV1",
@@ -48,10 +48,13 @@ func TestIncidentStoreCreateIncident(t *testing.T, makeStore func(t *testing.T) 
 		if len(inc.Entries) != 0 {
 			t.Errorf("len(inc.Entries) expected 0, got %v", len(inc.Entries))
 		}
+		if inc.Version != 1 {
+			t.Errorf("Version expected 1, got %v", inc.ID)
+		}
 	})
 
 	t.Run("map incident fields correcy", func(t *testing.T) {
-		inc, _ := m.CreateIncident(context.Background(), CreateIncidentRequest{
+		inc, _ := m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 			Title:    "outage4",
 			Service:  "api",
 			Severity: "SEV1",
@@ -72,10 +75,10 @@ func TestIncidentStoreCreateIncident(t *testing.T, makeStore func(t *testing.T) 
 	})
 	t.Run("sequential IDs", func(t *testing.T) {
 		m = makeStore(t)
-		inc1, _ := m.CreateIncident(context.Background(), CreateIncidentRequest{
+		inc1, _ := m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 			Title: "a", Service: "s", Severity: "SEV1", OpenedBy: "x",
 		})
-		inc2, _ := m.CreateIncident(context.Background(), CreateIncidentRequest{
+		inc2, _ := m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 			Title: "b", Service: "s", Severity: "SEV1", OpenedBy: "x",
 		})
 		if inc1.ID != "INC-1" {
@@ -90,12 +93,12 @@ func TestIncidentStoreCreateIncident(t *testing.T, makeStore func(t *testing.T) 
 func TestIncidentStoreUpdateIncident(t *testing.T, makeStore func(t *testing.T) IncidentStore) {
 	m := makeStore(t)
 
-	m.CreateIncident(context.Background(), CreateIncidentRequest{
+	m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 		Title: "outage", Service: "api", Severity: "SEV1", OpenedBy: "anh",
 	})
 
 	t.Run("update status", func(t *testing.T) {
-		inc, err := m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+		inc, err := m.UpdateIncident(context.Background(), "INC-1", 1, IncidentUpdate{
 			Status: new(RESOLVED),
 		})
 		if err != nil {
@@ -106,8 +109,17 @@ func TestIncidentStoreUpdateIncident(t *testing.T, makeStore func(t *testing.T) 
 		}
 	})
 
+	t.Run("test sequential Version", func(t *testing.T) {
+		_, err := m.UpdateIncident(context.Background(), "INC-1", 1, IncidentUpdate{
+			Status: new(MITIGATED),
+		})
+		if err != ErrIncidentVersionConflict {
+			t.Fatalf("expect Version conflict, get %v", err)
+		}
+	})
+
 	t.Run("update severity", func(t *testing.T) {
-		inc, err := m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+		inc, err := m.UpdateIncident(context.Background(), "INC-1", 2, IncidentUpdate{
 			Severity: new("SEV2"),
 		})
 		if err != nil {
@@ -119,7 +131,7 @@ func TestIncidentStoreUpdateIncident(t *testing.T, makeStore func(t *testing.T) 
 	})
 
 	t.Run("update on_call", func(t *testing.T) {
-		inc, err := m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+		inc, err := m.UpdateIncident(context.Background(), "INC-1", 3, IncidentUpdate{
 			OnCall: new("tom"),
 		})
 		if err != nil {
@@ -131,7 +143,7 @@ func TestIncidentStoreUpdateIncident(t *testing.T, makeStore func(t *testing.T) 
 	})
 
 	t.Run("multiple fields at once", func(t *testing.T) {
-		inc, err := m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+		inc, err := m.UpdateIncident(context.Background(), "INC-1", 4, IncidentUpdate{
 			Status:   new(TRIGGERED),
 			Severity: new("SEV3"),
 			OnCall:   new("carl"),
@@ -153,20 +165,11 @@ func TestIncidentStoreUpdateIncident(t *testing.T, makeStore func(t *testing.T) 
 	t.Run("updated_at changes", func(t *testing.T) {
 		before, _ := m.GetIncident(context.Background(), "INC-1")
 		time.Sleep(10 * time.Millisecond) //Give Buffer to compare updated_at
-		after, _ := m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+		after, _ := m.UpdateIncident(context.Background(), "INC-1", 5, IncidentUpdate{
 			Status: new(TRIGGERED),
 		})
 		if after.UpdatedAt.After(before.UpdatedAt) == false {
 			t.Error("UpdatedAt should advance")
-		}
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		_, err := m.UpdateIncident(context.Background(), "INC-999", IncidentUpdate{
-			Status: new(RESOLVED),
-		})
-		if !errors.Is(err, ErrIncidentNotFound) {
-			t.Errorf("expected ErrIncidentNotFound, got %v", err.Error())
 		}
 	})
 }
@@ -174,7 +177,7 @@ func TestIncidentStoreUpdateIncident(t *testing.T, makeStore func(t *testing.T) 
 func TestIncidentStoreAddEntry(t *testing.T, makeStore func(t *testing.T) IncidentStore) {
 	m := makeStore(t)
 
-	m.CreateIncident(context.Background(), CreateIncidentRequest{
+	m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 		Title:    "outage",
 		Service:  "api",
 		Severity: "SEV1",
@@ -182,7 +185,7 @@ func TestIncidentStoreAddEntry(t *testing.T, makeStore func(t *testing.T) Incide
 	})
 
 	t.Run("adds entry to existing incident", func(t *testing.T) {
-		entry, err := m.AddEntry(context.Background(), "INC-1", TimelineEntry{
+		entry, err := m.AddEntry(context.Background(), "INC-1", 1, TimelineEntry{
 			Author: "anh",
 			Type:   "observation",
 			Text:   "pool exhausted",
@@ -198,7 +201,7 @@ func TestIncidentStoreAddEntry(t *testing.T, makeStore func(t *testing.T) Incide
 		}
 	})
 	t.Run("sequential entry IDs", func(t *testing.T) {
-		entry, _ := m.AddEntry(context.Background(), "INC-1", TimelineEntry{
+		entry, _ := m.AddEntry(context.Background(), "INC-1", 2, TimelineEntry{
 			Author: "anh", Type: "observation", Text: "second entry",
 		})
 		if entry.ID != "TLE-2" {
@@ -206,25 +209,16 @@ func TestIncidentStoreAddEntry(t *testing.T, makeStore func(t *testing.T) Incide
 		}
 	})
 
-	t.Run("incident not found", func(t *testing.T) {
-		_, err := m.AddEntry(context.Background(), "INC-999", TimelineEntry{
-			Author: "anh", Type: "observation", Text: "test",
-		})
-		if !errors.Is(err, ErrIncidentNotFound) {
-			t.Errorf("expected ErrIncidentNotFound, got %v", err.Error())
-		}
-	})
-
 	t.Run("conflict on resolved incident", func(t *testing.T) {
 		// resolve the incident first
-		m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{
+		m.UpdateIncident(context.Background(), "INC-1", 3, IncidentUpdate{
 			Status: new(RESOLVED),
 		})
 
-		_, err := m.AddEntry(context.Background(), "INC-1", TimelineEntry{
+		_, err := m.AddEntry(context.Background(), "INC-1", 4, TimelineEntry{
 			Author: "anh", Type: "observation", Text: "too late",
 		})
-		if !errors.Is(err, ErrIncidentConflict) {
+		if !errors.Is(err, ErrIncidentResolved) {
 			t.Errorf("expected ErrIncidentConflict, got %v", err.Error())
 		}
 	})
@@ -233,22 +227,22 @@ func TestIncidentStoreAddEntry(t *testing.T, makeStore func(t *testing.T) Incide
 func TestIncidentStoreListIncidents(t *testing.T, makeStore func(t *testing.T) IncidentStore) {
 	m := makeStore(t)
 
-	m.CreateIncident(context.Background(), CreateIncidentRequest{
+	m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 		Title: "a", Service: "api", Severity: "SEV1", OpenedBy: "x",
 	})
-	m.CreateIncident(context.Background(), CreateIncidentRequest{
+	m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 		Title: "b", Service: "chatbot", Severity: "SEV2", OpenedBy: "x",
 	})
-	m.CreateIncident(context.Background(), CreateIncidentRequest{
+	m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 		Title: "c", Service: "biling", Severity: "SEV1", OpenedBy: "y",
 	})
-	m.CreateIncident(context.Background(), CreateIncidentRequest{
+	m.CreateIncident(context.Background(), "", CreateIncidentRequest{
 		Title: "d", Service: "api", Severity: "SEV3", OpenedBy: "z",
 	})
 
-	m.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{Status: new(RESOLVED)})
-	m.UpdateIncident(context.Background(), "INC-2", IncidentUpdate{Status: new(RESOLVED)})
-	m.UpdateIncident(context.Background(), "INC-3", IncidentUpdate{Status: new(INVESTIGATING)})
+	m.UpdateIncident(context.Background(), "INC-1", 1, IncidentUpdate{Status: new(RESOLVED)})
+	m.UpdateIncident(context.Background(), "INC-2", 1, IncidentUpdate{Status: new(RESOLVED)})
+	m.UpdateIncident(context.Background(), "INC-3", 1, IncidentUpdate{Status: new(INVESTIGATING)})
 
 	t.Run("no filter returns all", func(t *testing.T) {
 		list, err := m.ListIncidents(context.Background(), IncidentFilter{})

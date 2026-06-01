@@ -42,11 +42,11 @@ func TestInstrumented(t *testing.T) {
 	instrumented := setup_testInstrumented_Env(t)
 
 	t.Run("Create Incident", func(t *testing.T) {
-		_, err := instrumented.CreateIncident(context.Background(), validCreateIncidentRequest())
+		_, err := instrumented.CreateIncident(context.Background(), "", validCreateIncidentRequest())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = instrumented.CreateIncident(context.Background(), validCreateIncidentRequest())
+		_, err = instrumented.CreateIncident(context.Background(), "", validCreateIncidentRequest())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -75,7 +75,7 @@ func TestInstrumented(t *testing.T) {
 		}
 	})
 	t.Run("Add Entry", func(t *testing.T) {
-		_, err := instrumented.AddEntry(context.Background(), "INC-2", TimelineEntry{
+		_, err := instrumented.AddEntry(context.Background(), "INC-2", 1, TimelineEntry{
 			ID:     "TLE-1",
 			Time:   time.Now(),
 			Author: "me",
@@ -105,7 +105,7 @@ func TestInstrumented(t *testing.T) {
 		}
 	})
 	t.Run("Update Incident", func(t *testing.T) {
-		_, err := instrumented.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{Severity: new(SEV3)})
+		_, err := instrumented.UpdateIncident(context.Background(), "INC-1", 1, IncidentUpdate{Severity: new(SEV3)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +115,7 @@ func TestInstrumented(t *testing.T) {
 		}
 	})
 	t.Run("Update Incident by changing status", func(t *testing.T) {
-		_, err := instrumented.UpdateIncident(context.Background(), "INC-1", IncidentUpdate{Status: new(INVESTIGATING)})
+		_, err := instrumented.UpdateIncident(context.Background(), "INC-1", 2, IncidentUpdate{Status: new(INVESTIGATING)})
 		if err != nil {
 			t.Fatal(err)
 		}
