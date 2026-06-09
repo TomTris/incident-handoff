@@ -58,11 +58,11 @@ func (s *InstrumentedIncidentStore) ListIncidents(ctx context.Context, filter In
 
 func (s *InstrumentedIncidentStore) UpdateIncident(ctx context.Context, incID string, expectedIncVersion int, update IncidentUpdate) (Incident, error) {
 	timer := prometheus.NewTimer(s.metrics.DbQueryDurationSeconds.WithLabelValues("update_incident"))
-	incBefore, err := s.inner.UpdateIncident(ctx, incID, expectedIncVersion, update)
+	incAfter, err := s.inner.UpdateIncident(ctx, incID, expectedIncVersion, update)
 	timer.ObserveDuration()
 	if err == nil && update.Status != nil {
 		s.metrics.IncidentTotal.WithLabelValues(*update.Status).Inc()
-		s.metrics.IncidentTotal.WithLabelValues(incBefore.Status).Dec()
+		s.metrics.IncidentTotal.WithLabelValues(incAfter.Status).Dec()
 	}
-	return incBefore, err
+	return incAfter, err
 }

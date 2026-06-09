@@ -29,7 +29,7 @@ func getRouter(
 	// auth
 	protected.HandleFunc("GET /auth/me", ResponseMiddleware(authHandler.WhoAmI))
 	protected.HandleFunc("GET /auth/isauthenticated", ResponseMiddleware(authHandler.WhoAmI))
-	protected.HandleFunc(" /auth/logout", authHandler.LogoutHandler)
+	protected.HandleFunc("POST /auth/logout", authHandler.LogoutHandler)
 	// WebsocketHandler
 	protected.HandleFunc("GET /incidents/{id}/ws", incHandler.HandleIncidentWebSocket)
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 )
@@ -38,8 +37,6 @@ func TestOnCallStoreMemory(t *testing.T) {
 			t.Fatal("Not the same Username")
 		}
 		if entry1.StartsAt.Equal(entryReq.StartsAt) == false {
-			fmt.Println(entry1.StartsAt)
-			fmt.Println(entryReq.StartsAt)
 			t.Fatal("Not the same StartsAt")
 		}
 		if entry1.EndsAt.Equal(entryReq.EndsAt) == false {

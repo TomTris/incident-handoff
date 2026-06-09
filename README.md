@@ -6,7 +6,7 @@ Handoff captures timestamped actions as the engineer works and generates a struc
 
 ## Progress
 - [x] Phase 1 — Production Go HTTP Service
-- [x] Phase 2 — PostgreSQL Integration
+- [x] Phase 2 — Database Integration
 - [x] Phase 3 — WebSocket & Real-Time
 - [x] Phase 4 — Observability & Feature Flags
 - [x] Phase 5 — Authentication
