@@ -202,7 +202,7 @@ func TestIncidentStoreAddEntry(t *testing.T, makeStore func(t *testing.T) Incide
 		if entry.ID != "TLE-1" {
 			t.Errorf("expected %s, got %s", "TLE-1", entry.ID)
 		}
-		if entry.Time.IsZero() {
+		if entry.CreatedAt.IsZero() {
 			t.Error("Time not set")
 		}
 	})

@@ -69,7 +69,7 @@ func (m *MemoryIncidentStore) AddEntry(ctx context.Context, incID string, curren
 
 	m.nextEntryTimelineID++
 	entry.ID = entryIDPrefix + strconv.Itoa(m.nextEntryTimelineID)
-	entry.Time = time.Now()
+	entry.CreatedAt = time.Now()
 	inc.Entries = append(inc.Entries, entry)
 	inc.UpdatedAt = time.Now()
 	inc.Version = currentIncVersion + 1

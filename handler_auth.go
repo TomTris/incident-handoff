@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -24,6 +25,7 @@ func NewAuthHandler(users UserStore, secret []byte, ttl time.Duration) *AuthHand
 func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	requestID, _ := r.Context().Value(requestIDKey).(string)
 
+	fmt.Println(1)
 	answerUnauthorized := func() {
 		writeError(w, http.StatusUnauthorized, ErrorMessageJSON{
 			ErrorCode: "NOT_AUTHORIZED",
@@ -31,6 +33,7 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			RequestID: requestID,
 		})
 	}
+	fmt.Println(2)
 	answerInternalError := func(msg string) {
 		writeError(w, http.StatusInternalServerError, ErrorMessageJSON{
 			ErrorCode: "INTERNAL_SERVER_ERROR",
@@ -39,28 +42,33 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	fmt.Println(3)
 	submitted := UserLogin{}
 	if err := json.NewDecoder(r.Body).Decode(&submitted); err != nil {
 		answerUnauthorized()
 		return
 	}
 
+	fmt.Println(submitted)
 	user, err := h.Users.GetByUsername(r.Context(), submitted.Username)
 	if err != nil {
 		answerUnauthorized()
 		return
 	}
+	fmt.Println(5)
 	if err := VerifyPassword(user.Password, submitted.Password); err != nil {
 		answerUnauthorized()
 		return
 	}
 
+	fmt.Println(56)
 	token, err := IssueToken(user, h.Secret, h.TTL, h.Now())
 	if err != nil {
 		answerInternalError("Token signing failed")
 		return
 	}
 
+	fmt.Println(56)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    token,
@@ -89,4 +97,8 @@ func (h *AuthHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) WhoAmI(r *http.Request) (*AppResponse, *AppError) {
 	claims := r.Context().Value(userContextKey).(UserContext)
 	return newAppResponse(http.StatusOK, claims), nil
+}
+
+func (h *AuthHandler) IsAuthenticated(r *http.Request) (*AppResponse, *AppError) {
+	return newAppResponse(http.StatusNoContent, nil), nil
 }

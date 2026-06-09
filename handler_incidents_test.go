@@ -18,11 +18,11 @@ import (
 
 func TestMarshalNewEntryEvent(t *testing.T) {
 	entryTimeline := TimelineEntry{
-		ID:     "TLE-1",
-		Time:   time.Now(),
-		Author: "anh",
-		Type:   OBSERVATION,
-		Text:   "test entry",
+		ID:        "TLE-1",
+		CreatedAt: time.Now(),
+		Author:    "anh",
+		Type:      OBSERVATION,
+		Text:      "test entry",
 	}
 	rawMsg := marshalNewEntryEvent("INC-test1", entryTimeline)
 	var event map[string]any

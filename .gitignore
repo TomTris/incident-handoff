@@ -6,3 +6,4 @@ cover.out
 *abc.txt
 
 frontend/**/node_modules
+frontend/public/dist

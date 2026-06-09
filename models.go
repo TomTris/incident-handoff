@@ -45,11 +45,11 @@ func (c *CreateIncidentRequest) Validate() error {
 }
 
 type TimelineEntry struct {
-	ID     string    `json:"id" bson:"id"`
-	Time   time.Time `json:"time" bson:"time"`
-	Author string    `json:"author" bson:"author"`
-	Type   string    `json:"type" bson:"type"` // observation, action, discovery, open_question, state_change
-	Text   string    `json:"text" bson:"text"`
+	ID        string    `json:"id" bson:"id"`
+	Author    string    `json:"author" bson:"author"`
+	Type      string    `json:"type" bson:"type"` // observation, action, discovery, open_question, state_change
+	Text      string    `json:"text" bson:"text"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
 
 func (c *TimelineEntry) Validate() error {

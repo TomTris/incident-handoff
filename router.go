@@ -28,6 +28,7 @@ func getRouter(
 	protected.HandleFunc("PATCH /incidents/{id}", ResponseMiddleware(incHandler.UpdateIncident))
 	// auth
 	protected.HandleFunc("GET /auth/me", ResponseMiddleware(authHandler.WhoAmI))
+	protected.HandleFunc("GET /auth/isauthenticated", ResponseMiddleware(authHandler.WhoAmI))
 	protected.HandleFunc(" /auth/logout", authHandler.LogoutHandler)
 	// WebsocketHandler
 	protected.HandleFunc("GET /incidents/{id}/ws", incHandler.HandleIncidentWebSocket)
@@ -50,7 +51,7 @@ func getRouter(
 		http.ServeFile(w, r, "./frontend/vanilla/login.html")
 	})
 	public.HandleFunc("POST /login", authHandler.LoginHandler)
-	public.Handle("GET /", http.FileServer(http.Dir("./frontend/vanilla")))
+	public.Handle("GET /", http.FileServer(http.Dir("./frontend/public")))
 
 	root := http.NewServeMux()
 	authMW := AuthMiddleware(authHandler.Secret)

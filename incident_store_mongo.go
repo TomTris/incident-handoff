@@ -117,7 +117,7 @@ func (m *MongoIncidentStore) AddEntry(ctx context.Context, incID string, expecte
 
 	now := time.Now()
 	entry.ID = id
-	entry.Time = now
+	entry.CreatedAt = now
 
 	isActive := bson.M{"$ne": bson.A{"$status", RESOLVED}}
 	appendEntry := bson.M{"$concatArrays": bson.A{"$entries", bson.A{entry}}}
