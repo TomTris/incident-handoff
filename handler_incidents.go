@@ -68,7 +68,8 @@ func (h *IncidentHandler) CreateIncident(r *http.Request) (*AppResponse, *AppErr
 		}
 	}
 
-	createdIncident, err := h.IncidentStore.CreateIncident(r.Context(), onCall, req)
+	user := r.Context().Value(userContextKey).(UserContext)
+	createdIncident, err := h.IncidentStore.CreateIncident(r.Context(), user.Username, onCall, req)
 	if err != nil {
 		return nil, InternalServerError(err)
 	}

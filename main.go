@@ -101,7 +101,7 @@ func main() {
 
 	// init authHandler
 	userStore := NewUserStore()
-	authHandler := NewAuthHandler(userStore, []byte(config.JWT_SECRET), time.Duration(15))
+	authHandler := NewAuthHandler(userStore, []byte(config.JWT_SECRET), time.Duration(15*time.Minute))
 
 	// Set router
 	router := getRouter(&incHandler, &flagHandler, authHandler, onCallHandler, client, promRegistry, httpMetrics)

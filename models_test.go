@@ -8,7 +8,7 @@ import (
 func TestCreateIncidentRequest_Validate(t *testing.T) {
 	valid := func() CreateIncidentRequest {
 		return CreateIncidentRequest{
-			Title: "outage", Service: "api", Severity: "SEV1", OpenedBy: "anh",
+			Title: "outage", Service: "api", Severity: "SEV1",
 		}
 	}
 
@@ -51,17 +51,9 @@ func TestCreateIncidentRequest_Validate(t *testing.T) {
 		}
 	})
 
-	t.Run("empty opened_by", func(t *testing.T) {
-		r := valid()
-		r.OpenedBy = ""
-		if !errors.Is(r.Validate(), ErrOpenedBy) {
-			t.Error("expected ErrOpenedBy")
-		}
-	})
-
 	t.Run("trims whitespace", func(t *testing.T) {
 		r := CreateIncidentRequest{
-			Title: "  outage  ", Service: "  api  ", Severity: "  SEV1  ", OpenedBy: "  anh  ",
+			Title: "  outage  ", Service: "  api  ", Severity: "  SEV1  ",
 		}
 		r.Validate()
 		if r.Title != "outage" {
@@ -69,9 +61,6 @@ func TestCreateIncidentRequest_Validate(t *testing.T) {
 		}
 		if r.Service != "api" {
 			t.Errorf("Service not trimmed: %q", r.Service)
-		}
-		if r.OpenedBy != "anh" {
-			t.Errorf("OpenedBy not trimmed: %q", r.OpenedBy)
 		}
 	})
 }

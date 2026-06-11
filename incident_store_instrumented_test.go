@@ -26,7 +26,6 @@ func validCreateIncidentRequest() CreateIncidentRequest {
 		Title:    "Title",
 		Service:  "payment",
 		Severity: "SEV1",
-		OpenedBy: "OpenedBy",
 	}
 }
 
@@ -42,11 +41,11 @@ func TestInstrumented(t *testing.T) {
 	instrumented := setup_testInstrumented_Env(t)
 
 	t.Run("Create Incident", func(t *testing.T) {
-		_, err := instrumented.CreateIncident(context.Background(), "", validCreateIncidentRequest())
+		_, err := instrumented.CreateIncident(context.Background(), "", "", validCreateIncidentRequest())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = instrumented.CreateIncident(context.Background(), "", validCreateIncidentRequest())
+		_, err = instrumented.CreateIncident(context.Background(), "", "", validCreateIncidentRequest())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,11 +75,11 @@ func TestInstrumented(t *testing.T) {
 	})
 	t.Run("Add Entry", func(t *testing.T) {
 		_, err := instrumented.AddEntry(context.Background(), "INC-2", 1, TimelineEntry{
-			ID:     "TLE-1",
-			Time:   time.Now(),
-			Author: "me",
-			Type:   "observation",
-			Text:   "test",
+			ID:        "TLE-1",
+			CreatedAt: time.Now(),
+			Author:    "me",
+			Type:      "observation",
+			Text:      "test",
 		})
 		if err != nil {
 			t.Fatal(err)

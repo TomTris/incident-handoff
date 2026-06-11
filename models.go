@@ -24,7 +24,6 @@ type CreateIncidentRequest struct {
 	Title    string `json:"title" bson:"title"`
 	Service  string `json:"service" bson:"service"`
 	Severity string `json:"severity" bson:"severity"` // SEV1, SEV2, SEV3
-	OpenedBy string `json:"opened_by" bson:"opened_by"`
 }
 
 func (c *CreateIncidentRequest) Validate() error {
@@ -42,20 +41,15 @@ func (c *CreateIncidentRequest) Validate() error {
 	if IncidentSeverity[c.Severity] == false {
 		return ErrInvalidSeverity
 	}
-
-	c.OpenedBy = strings.TrimSpace(c.OpenedBy)
-	if c.OpenedBy == "" {
-		return ErrOpenedBy
-	}
 	return nil
 }
 
 type TimelineEntry struct {
-	ID     string    `json:"id" bson:"id"`
-	Time   time.Time `json:"time" bson:"time"`
-	Author string    `json:"author" bson:"author"`
-	Type   string    `json:"type" bson:"type"` // observation, action, discovery, open_question, state_change
-	Text   string    `json:"text" bson:"text"`
+	ID        string    `json:"id" bson:"id"`
+	Author    string    `json:"author" bson:"author"`
+	Type      string    `json:"type" bson:"type"` // observation, action, discovery, open_question, state_change
+	Text      string    `json:"text" bson:"text"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
 
 func (c *TimelineEntry) Validate() error {

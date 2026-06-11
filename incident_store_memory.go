@@ -19,7 +19,7 @@ func NewMemoryIncidentStore() *MemoryIncidentStore {
 	return &MemoryIncidentStore{incidents: make(map[string]Incident)}
 }
 
-func (m *MemoryIncidentStore) CreateIncident(ctx context.Context, onCall string, incReq CreateIncidentRequest) (Incident, error) {
+func (m *MemoryIncidentStore) CreateIncident(ctx context.Context, openedBy string, onCall string, incReq CreateIncidentRequest) (Incident, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -29,7 +29,7 @@ func (m *MemoryIncidentStore) CreateIncident(ctx context.Context, onCall string,
 		Title:     incReq.Title,
 		Service:   incReq.Service,
 		Severity:  incReq.Severity,
-		OpenedBy:  incReq.OpenedBy,
+		OpenedBy:  openedBy,
 		OnCall:    onCall,
 		Status:    TRIGGERED,
 		CreatedAt: time.Now(),
@@ -69,7 +69,7 @@ func (m *MemoryIncidentStore) AddEntry(ctx context.Context, incID string, curren
 
 	m.nextEntryTimelineID++
 	entry.ID = entryIDPrefix + strconv.Itoa(m.nextEntryTimelineID)
-	entry.Time = time.Now()
+	entry.CreatedAt = time.Now()
 	inc.Entries = append(inc.Entries, entry)
 	inc.UpdatedAt = time.Now()
 	inc.Version = currentIncVersion + 1

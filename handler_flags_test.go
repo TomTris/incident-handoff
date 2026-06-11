@@ -139,8 +139,6 @@ func TestCreateFlag(t *testing.T) {
 		if appRes.Status != http.StatusOK {
 			t.Fatalf("expected status %v, got %v", http.StatusOK, appRes.Status)
 		}
-		// raw, _ := json.MarshalIndent(appRes.Body, "", " ")
-		// fmt.Println(string(raw))
 		answer := appRes.Body.(*FlagEvaluateAnswer)
 		if answer.UserID != "tom" {
 			t.Fatalf("expected user_id %v, get %v", "tom", answer.UserID)
