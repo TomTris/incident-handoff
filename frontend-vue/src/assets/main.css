@@ -67,26 +67,34 @@ a {
 }
 /* ---- Form ---- */
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
   margin-bottom: 18px;
 }
 
 .field-label {
   color: var(--color-text-dim);
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-bottom: 7px;
+  text-transform: uppercase;
 }
 
-.input {
+.input,
+.select,
+.textarea {
   background-color: var(--color-input);
   border: 1px solid var(--color-border);
   border-radius: 5px;
   color: var(--color-text-bright);
   padding: 10px;
+  width: 100%;
   transition: border-color 0.3ws;
 }
 
-.input:focus {
+.input:focus,
+.select:focus,
+.textarea:focus {
   border-color: var(--color-accent);
   outline: none;
 }
@@ -94,6 +102,7 @@ a {
 .btn {
   background-color: var(--color-panel-2);
   border: 1px solid var(--color-border);
+  color: var(--color-text-bright);
   border-radius: 5px;
   cursor: pointer;
   color: var(--color-text);
@@ -125,11 +134,6 @@ a {
   color: var(--color-text-black);
 }
 
-.error {
-  color: red;
-  font-size: 12px;
-}
-
 /* Headings and text */
 
 .page-title {
@@ -152,4 +156,45 @@ a {
 
 .dim {
   color: var(--color-text-dim)
+}
+
+/* Badge */
+.badge {
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700px;
+  letter-spacing: 1px;
+  padding: 3px 9px;
+  text-transform: uppercase;
+}
+
+.sev-SEV1 {
+  background-color: rgba(248, 81, 73, 0.15);
+  border: 1px solid var(--color-sev1);
+  color: var(--color-sev1);
+}
+
+.sev-SEV2 {
+  background-color: rgba(240, 136, 62, 0.15);
+  border: 1px solid var(--color-sev2);
+  color: var(--color-sev2);
+}
+
+.sev-SEV3 {
+  background-color: rgba(210, 153, 34, 0.15);
+  border: 1px solid var(--color-sev3);
+  color: var(--color-sev3);
+}
+
+/* Messages */
+
+.success-message {
+  color: var(--color-success, #4dbf5c);
+  font-size: 13px;
+}
+
+.error {
+  color: red;
+  font-size: 12px;
 }
