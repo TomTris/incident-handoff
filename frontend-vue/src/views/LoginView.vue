@@ -23,18 +23,18 @@ async function handleLogin()  {
         <div class ="login-card">
             <div class="login-brand">
                 <span class="login-wordmark">HANDOFF</span>
-                <span class="login-mark">\\</span>
+                <span class="login-mark">//</span>
             </div>
             <p class="login-tag">Incident context across shift changes</p>
             <form class="login-form" @submit.prevent="handleLogin">
                 <p v-if="error" class="error" role="alert">{{ error }}</p>
                 <div class="field">
                     <label class="field-label">Username</label>
-                    <input class="input" type="text" v-model="username" placeholder="tom@xxx.hn" autocomplete="username" required>
+                    <input class="input" type="text" v-model="username" placeholder="tom" autocomplete="username" required>
                 </div>
                 <div class="field">
                     <label class="field-label">Password</label>
-                    <input class="input" v-model="password" type="password" autocomplete="current-password" required>
+                    <input class="input" v-model="password" type="password" placeholder="●●●●●●●●" autocomplete="current-password" required>
                 </div>
                 <button class="btn btn-primary btn-block" type="submit">Authenticate</button>
             </form>

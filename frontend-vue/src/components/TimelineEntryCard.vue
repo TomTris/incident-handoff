@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TimelineEntry } from '@/types';
+import { isoToDateAndTime } from '@/utils/user';
 
 
 const props = defineProps<{
@@ -15,7 +16,7 @@ const props = defineProps<{
         <span class="entry-type" :class="'type-' + entry.type">{{ entry.type }}</span>
         <span class="entry-author mono">{{ entry.author }}</span>
         <span class="spacer"></span>
-        <span class="entry-time mono dim">{{ entry.created_at }}</span>
+        <span class="entry-time mono dim">{{ isoToDateAndTime(entry.created_at) }}</span>
       </div>
       <p class="entry-text">{{ entry.text }}</p>
     </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Incident } from '@/types';
 import { computed } from 'vue';
-
+import { isoToDateAndTime } from '@/utils/user';
 const props = defineProps<{
     inc: Incident | undefined;
 }>()
@@ -9,12 +9,7 @@ const props = defineProps<{
 const actionsTaken = computed(() => props.inc?.entries.filter((entry) => entry.type == "action"))
 const openQuestions = computed(() => props.inc?.entries.filter((entry) => entry.type === "open_question") ?? [])
 const lastOpenQuestion = computed(() => openQuestions.value.at(-1))
-function IsoToDateAndTime(s: string) : string {
-    console.log(s)
-    const date = s.slice(11, 16) + " " + s.slice(8, 10) + "." + s.slice(5, 7)
-    console.log(date)
-    return date
-}
+
 </script>
 
 <template>
@@ -28,7 +23,7 @@ function IsoToDateAndTime(s: string) : string {
                         No actions logged yet.
                     </li>
                     <li v-for="a in actionsTaken" class="action-row">
-                        <span class="action-time mono dim" >{{  IsoToDateAndTime(a.created_at) }}</span>
+                        <span class="action-time mono dim" >{{ isoToDateAndTime(a.created_at) }}</span>
                         <span class="action-who mono dim" >{{ a.author }}</span>
                         <span class="action-text mono dim" >{{ a.text }}</span>
                     </li>

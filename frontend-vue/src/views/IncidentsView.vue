@@ -21,7 +21,7 @@ onMounted(async() => {
 const filterStatus = ref('')
 const service = ref('')
 const filteredIncidents = computed(() => {
-  var filteredIncidents = incidents.value
+  let filteredIncidents = incidents.value
   if (service.value.trim() != '') {
     filteredIncidents = incidents.value.filter((inc)=>inc.service.includes(service.value.trim()))
   }

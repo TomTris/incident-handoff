@@ -3,7 +3,7 @@ import { logout, whoAmI } from '@/api';
 import { useUserContextStore } from '@/stores/userIdentity';
 import type { UserContext } from '@/types';
 import { makeEmptyUserContext } from '@/utils/user';
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 async function handleLogout() {
     await logout()
@@ -11,8 +11,27 @@ async function handleLogout() {
 }
 
 const identity = ref<UserContext>(makeEmptyUserContext())
-  
-onMounted(async()=>{
+
+const currentTime = ref('')
+let timer: ReturnType<typeof setInterval> | undefined
+
+function updateTime() {
+    currentTime.value = new Date().toLocaleTimeString('de-DE', {
+        timeZone: 'Europe/Berlin',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+}
+
+onMounted(async () => {
+    updateTime()
+    // align to the next minute boundary, then tick every minute
+    const msToNextMinute = 60000 - (Date.now() % 60000)
+    timer = setTimeout(() => {
+        updateTime()
+        timer = setInterval(updateTime, 60000)
+    }, msToNextMinute)
+
     try {
         identity.value = await whoAmI()
     } catch (e) {
@@ -20,22 +39,29 @@ onMounted(async()=>{
         window.location.href = "/"
     }
 })
+
+onUnmounted(() => {
+    clearTimeout(timer as ReturnType<typeof setTimeout>)
+    clearInterval(timer as ReturnType<typeof setInterval>)
+})
+
 </script>
 
 <template>
     <header class="appbar">
         <div class="appbar-inner">
             <RouterLink :to="{name: 'entry'}" class="brand">
-                <span class="brand-name">Handoff</span>
+                <span class="brand-name">HANDOFF</span>
                 <span class="brand-mark">//</span>
             </RouterLink>
             <nav class="appbar-nav">
                 <RouterLink :to="{name: 'incidents'}" class="nav-link">Incidents</RouterLink>
             </nav>
-            
-            
+
+
             <div class="spacer"></div>
-            
+
+            <span class="current-time mono">🕞 {{ currentTime }}</span>
             <div class="appbar-user">
                 <span class="user-name mono"> {{ identity.username }}</span>
                 <span class="user-role">{{identity.role}}</span>
@@ -64,7 +90,7 @@ onMounted(async()=>{
   align-items: center;
   color: var(--color-text-bright);
   display: flex;
-  gap: 8px;
+  gap: 5px;
   height: 56px;
 }
 
@@ -74,10 +100,11 @@ onMounted(async()=>{
 }
 
 .brand-name {
+  color: var(--color-text-bright);
   font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
 }
 
 .appbar-nav {
@@ -98,6 +125,19 @@ onMounted(async()=>{
 
 .router-link-exact-active.nav-link {
   color: var(--color-accent);
+}
+
+.current-time {
+  align-items: center;
+  color: var(--color-text-dim);
+  display: flex;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.clock-icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
 }
 
 .appbar-user {
