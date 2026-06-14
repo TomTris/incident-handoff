@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { addEntry, getIncident, updateIncident, } from '@/api';
-import type { Incident, IncidentStatus, Severity, TimelineEntryType } from '@/types';
+import { addEntry, getIncident, updateIncident, whoAmI, } from '@/api';
+import type { Incident, IncidentStatus, Severity, TimelineEntryType, UserContext } from '@/types';
 import { useRoute } from 'vue-router';
 import AppHeader from '@/components/AppHeader.vue';
 import SeverityBadge from '@/components/SeverityBadge.vue';
@@ -10,6 +10,7 @@ import TimelineEntryCard from '@/components/TimelineEntryCard.vue';
 import AddEntry from '@/components/AddEntry.vue';
 import DetailSide from '@/components/DetailSide.vue';
 import { onMounted, ref } from 'vue';
+import { makeEmptyUserContext } from '@/utils/user';
 
 const route = useRoute()
 const inc = ref<Incident | undefined>()
@@ -22,6 +23,7 @@ onMounted(async() => {
         inc.value = await getIncident(route.params.id as string)
     } catch (e) {
         errIncidentLoadingMsg.value = (e as Error).message
+        return
     }
 })
 
@@ -52,7 +54,7 @@ async function handleIncidentUpdate(payload: {severity: Severity, status: Incide
     }
 
     if (payload.on_call.trim() == '') {
-        errAddEntryMsg.value = "on-call shouldn't be empty"
+        errUpdateIncidentMsg.value = "on-call shouldn't be empty"
         return
     }
 

@@ -2,6 +2,7 @@
 import { logout, whoAmI } from '@/api';
 import { useUserContextStore } from '@/stores/userIdentity';
 import type { UserContext } from '@/types';
+import { makeEmptyUserContext } from '@/utils/user';
 import { onMounted, ref } from 'vue';
 
 async function handleLogout() {
@@ -9,10 +10,7 @@ async function handleLogout() {
     window.location.href = "/"
 }
 
-const makeEmpty =() => {
-    return {id: '', username : '', role : ''}
-  }
-const identity = ref<UserContext>(makeEmpty())
+const identity = ref<UserContext>(makeEmptyUserContext())
   
 onMounted(async()=>{
     try {

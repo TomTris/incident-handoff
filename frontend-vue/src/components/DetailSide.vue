@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { Incident, IncidentStatus, Severity } from '@/types';
+import { whoAmI } from '@/api';
+import type { Incident, IncidentStatus, Severity, UserContext } from '@/types';
+import { makeEmptyUserContext } from '@/utils/user';
 import { computed, onMounted, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -11,6 +13,7 @@ const emit = defineEmits<{
     'updateIncident' : [payload : {severity: Severity, status: IncidentStatus, on_call: string}]
 }>()
 
+const identity = ref<UserContext>(makeEmptyUserContext())
 const updateOnCall = ref('')
 const updateSeverity = ref<Severity>("SEV1")
 const updateStatus = ref<IncidentStatus>("triggered")
@@ -25,6 +28,15 @@ watch(
   },
   { immediate: true }
 )
+
+onMounted( async() => {
+  try {
+    identity.value = await whoAmI()
+  } catch (e) {
+      alert('Something is wrong.\n' + (e as Error).message)
+      window.location.href = "/"
+  }
+})
 
 
 const totalEntry = computed(() => props.inc?.entries.length || 0)
@@ -49,6 +61,16 @@ const handoffCount = computed(() => {
 
 function onIncidentUpdate() {
     emit('updateIncident', {severity: updateSeverity.value, status: updateStatus.value, on_call: updateOnCall.value})
+}
+
+function isIncidentOwner() : boolean {
+  if (identity.value.role == "admin") {
+    return true
+  }
+  if (identity.value.role == "engineer" && identity.value.username == props.inc?.on_call) {
+    return true
+  }
+  return false
 }
 
 </script>
@@ -82,7 +104,7 @@ function onIncidentUpdate() {
         <p class="admin-note mono">ADMIN / ON-CALL ONLY</p>
         <div class="field">
             <label class="field-label">Status</label>
-            <select class="select" v-model="updateStatus">
+            <select class="select" :disabled="!isIncidentOwner()" v-model="updateStatus">
             <option value="triggered">Triggered</option>
             <option value="acknowledged">Acknowledged</option>
             <option value="investigating">Investigating</option>
@@ -92,7 +114,7 @@ function onIncidentUpdate() {
         </div>
         <div class="field">
             <label class="field-label">Severity</label>
-            <select class="select" v-model="updateSeverity">
+            <select class="select" :disabled="!isIncidentOwner()" v-model="updateSeverity">
             <option value="SEV1">SEV1</option>
             <option value="SEV2">SEV2</option>
             <option value="SEV3">SEV3</option>
@@ -103,11 +125,21 @@ function onIncidentUpdate() {
             <input
             class="input"
             type="text"
+            :disabled="!isIncidentOwner()" 
             v-model="updateOnCall"
             placeholder="username to hand the pager to"
             />
         </div>
-        <button class="btn btn-block" @click.prevent="onIncidentUpdate">Apply update</button>
+        <button v-if="isIncidentOwner()" class="btn btn-primary btn-block" @click.prevent="onIncidentUpdate">Apply update</button>
+        <button
+            v-else
+            class="btn btn-block"
+            @click.prevent="onIncidentUpdate"
+            :disabled="!isIncidentOwner()"
+            title='You are not admin nor on-call engineer to update this incident'
+          >
+          Apply update
+        </button>
         <p class="error">{{ errorUpdateIncidentMsg }}</p>
         </div>
     </div>

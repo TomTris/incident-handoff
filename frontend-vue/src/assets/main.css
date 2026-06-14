@@ -232,3 +232,14 @@ a {
   color: red;
   font-size: 12px;
 }
+
+.back {
+    color: var(--color-text-dim);
+    margin-bottom: 20px;
+    display: inline-block;
+    font-size: 13px;
+}
+
+.back:hover {
+  color: var(--color-text-bright);
+}

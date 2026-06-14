@@ -19,44 +19,56 @@ async function handleLogin()  {
 
 <template>
   <main>
+    
     <div class="login-screen">
         <div class ="login-card">
             <div class="login-brand">
                 <span class="login-wordmark">HANDOFF</span>
                 <span class="login-mark">\\</span>
             </div>
-            <p class="login-tag">Incident context across shift changes</p>
-            <form class="login-form" @submit.prevent="handleLogin">
-                <p v-if="error" class="error" role="alert">{{ error }}</p>
-                <div class="field">
-                    <label class="field-label">Username</label>
-                    <input class="input" type="text" v-model="username" placeholder="tom@xxx.hn" autocomplete="username" required>
+            <p class="login-tag"> Trial accounts</p>
+            <div class="accounts">
+                <div class="account">
+                    <p class="account-info"> username: anh </p>
+                    <p class="account-info"> password: anh123 </p>
+                    <p class="account-info"> role: engineer </p>
                 </div>
-                <div class="field">
-                    <label class="field-label">Password</label>
-                    <input class="input" v-model="password" type="password" autocomplete="current-password" required>
+                <div class="account">
+                    <p class="account-info"> username: bernd </p>
+                    <p class="account-info"> password: bernd123 </p>
+                    <p class="account-info"> role: engineer </p>
                 </div>
-                <button class="btn btn-primary btn-block" type="submit">Authenticate</button>
-            </form>
+                <div class="account">
+                    <p class="account-info"> username: admin </p>
+                    <p class="account-info"> password: admin123 </p>
+                    <p class="account-info"> role: admin </p>
+                </div>
+            </div>
             <p class="login-foot mono dim">ON-CALL ACCESS ONLY</p>
-            <!-- To delete: -->
-            <RouterLink :to="{name:'trial-accounts'}" class="back mono">← Get trial accounts</RouterLink>
+            <RouterLink :to="{name:'incidents'}" class="back mono">← Back to incident</RouterLink>
         </div>
     </div>
   </main>
 </template>
 
 <style scoped>
-/* Delete this CSS */
 .back {
-    padding-top: 30px;
+        padding-top: 30px;
     display: flex;
     justify-content: center;
-    font-size: 15px;
+    font-size: 18px;
+}
+.accounts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-left: 30px;
+    margin-bottom: 40px;
 }
 
 .login-screen {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 90vh;
@@ -70,7 +82,7 @@ async function handleLogin()  {
     border-radius: 8px;
     padding: 40px;
     max-width: 380px;
-    width: 100%;    
+    width: 100%;
 }
 
 .login-brand{

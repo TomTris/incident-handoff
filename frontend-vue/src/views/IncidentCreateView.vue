@@ -105,18 +105,6 @@ async function handleCreateIncident() {
   max-width: 640px;
 }
 
-.back {
-    color: var(--color-text-dim);
-    margin-bottom: 20px;
-    display: inline-block;
-    font-size: 13px;
-    margin-bottom: 20px;
-}
-
-.back:hover {
-    color: var(--color-text-bright)
-}
-
 .create-title {
   margin-bottom: 24px;
 }
