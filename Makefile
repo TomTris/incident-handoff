@@ -1,4 +1,5 @@
 run:
+	cd ./frontend-vue && npm run build
 	go run .
 
 env:

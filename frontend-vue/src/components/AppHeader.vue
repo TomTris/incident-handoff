@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { logout, whoAmI } from '@/api';
-import { useUserContextStore } from '@/stores/userIdentity';
 import type { UserContext } from '@/types';
 import { makeEmptyUserContext } from '@/utils/user';
 import { onMounted, onUnmounted, ref } from 'vue';

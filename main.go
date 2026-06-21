@@ -39,7 +39,7 @@ func NewOnCallStore() OnCallStore {
 		Service:  "payment",
 		Username: "anh",
 		StartsAt: time.Now().Add(-1 * time.Minute),
-		EndsAt:   time.Now().Add(9999 * time.Hour),
+		EndsAt:   time.Now().Add(999999 * time.Hour),
 	}
 
 	oc2 := OnCallEntry{
@@ -47,7 +47,7 @@ func NewOnCallStore() OnCallStore {
 		Service:  "database",
 		Username: "bernd",
 		StartsAt: time.Now().Add(-1 * time.Minute),
-		EndsAt:   time.Now().Add(9999 * time.Hour),
+		EndsAt:   time.Now().Add(999999 * time.Hour),
 	}
 
 	seedOnCalls := map[string]OnCallEntry{
@@ -112,7 +112,7 @@ func main() {
 		Handler: router,
 	}
 	go func() {
-		slog.Info(fmt.Sprintf("server starting port=%s", srv.Addr))
+		slog.Info(fmt.Sprintf("server starting http://127.0.0.1%s/", srv.Addr))
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
