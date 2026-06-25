@@ -19,7 +19,10 @@ type Config struct {
 }
 
 func loadConfig() Config {
-	godotenv.Load()
+	if os.Getenv("HANDOFF_ENV") != "production" {
+		godotenv.Load("../.env")
+	}
+
 	config := Config{
 		Port:             envOr("HANDOFF_PORT", "8080"),
 		LogLevel:         envOr("HANDOFF_LOG_LEVEL", "info"),
@@ -56,8 +59,10 @@ const (
 )
 
 const (
-	CollectionIncidents = "incidents"
-	CollectionCounters  = "counters"
+	CollectionUsers            = "users"
+	CollectionUserCounters     = "user_counters"
+	CollectionIncidents        = "incidents"
+	CollectionIncidentCounters = "incident_counters"
 )
 
 // Incident Severity

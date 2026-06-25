@@ -20,7 +20,7 @@ func TestGetByUsername(t *testing.T) {
 		{ID: "u3", Username: "admin", Password: pwd3, Role: "admin"},
 	}
 
-	users := NewInMemoryUserStoreWithSeed(seedUsers)
+	users := NewMemoryUserStoreWithSeed(seedUsers)
 	for _, each := range users.users {
 		_, err := users.GetByUsername(context.Background(), each.Username)
 		if err != nil {
@@ -49,11 +49,11 @@ func TestCreateUser(t *testing.T) {
 		{ID: "u3", Username: "admin", Password: pwd3, Role: "admin"},
 	}
 
-	users := NewInMemoryUserStoreWithSeed([]User{})
+	users := NewMemoryUserStoreWithSeed([]User{})
 
 	t.Run("normal creation with sequential IDs", func(t *testing.T) {
-		u0, err0 := users.Create(seedUsers[0])
-		u1, err1 := users.Create(seedUsers[1])
+		u0, err0 := users.Create(t.Context(), seedUsers[0])
+		u1, err1 := users.Create(t.Context(), seedUsers[1])
 		if err0 != nil || err1 != nil {
 			t.Fatalf("expect no error")
 		}
@@ -63,7 +63,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("create an user with an existing username", func(t *testing.T) {
-		_, err := users.Create(seedUsers[1])
+		_, err := users.Create(t.Context(), seedUsers[1])
 		if errors.Is(err, ErrUserAlreadyExist) == false {
 			t.Fatalf("expect error `%v`, get `%v`", ErrUserAlreadyExist, err)
 		}

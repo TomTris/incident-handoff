@@ -16,23 +16,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func NewIncidentStore(conf Config) (*mongo.Client, IncidentStore) {
-	var client *mongo.Client = nil
-	var store IncidentStore
-	if conf.ConnectionString != "" {
-		slog.Info("using mongo store", "db", conf.DatabaseName)
-		client, err := mongo.Connect(options.Client().ApplyURI(conf.ConnectionString))
-		if err != nil {
-			log.Fatal(err)
-		}
-		store = NewMongoIncidentStore(client, conf.DatabaseName)
-	} else {
-		slog.Info("no connection string, using in-memory store")
-		store = NewMemoryIncidentStore()
-	}
-	return client, store
-}
-
 func NewOnCallStore() OnCallStore {
 	oc1 := OnCallEntry{
 		ID:       "u1",
@@ -58,21 +41,18 @@ func NewOnCallStore() OnCallStore {
 	return NewInMemoryOnCallStore(seedOnCalls)
 }
 
-// func NewUserStore() UserStore {
-// 	pwd1, err1 := HashPassword("anh123")
-// 	pwd2, err2 := HashPassword("bernd123")
-// 	pwd3, err3 := HashPassword("admin123")
-// 	if err1 != nil || err2 != nil || err3 != nil {
-// 		log.Fatalf("HashPassword has problem")
-// 	}
-
-// 	var seedUsers = []User{
-// 		{ID: "u1", Username: "anh", Password: pwd1, Role: "engineer"},
-// 		{ID: "u2", Username: "bernd", Password: pwd2, Role: "engineer"},
-// 		{ID: "u3", Username: "admin", Password: pwd3, Role: "admin"},
-// 	}
-// 	return NewInMemoryUserStore(seedUsers)
-// }
+func getMongoClient(conf Config) *mongo.Client {
+	if conf.ConnectionString == "" {
+		slog.Info("HANDOFF_CONNECT_STRING is empty, use Memory store only")
+		return nil
+	}
+	slog.Info("using mongo store", "db", conf.DatabaseName)
+	client, err := mongo.Connect(options.Client().ApplyURI(conf.ConnectionString))
+	if err != nil {
+		log.Fatal("can't connect to db via HANDOFF_CONNECT_STRING")
+	}
+	return client
+}
 
 func main() {
 	// init metrics
@@ -92,9 +72,12 @@ func main() {
 	// init onCallHandler
 	onCallHandler := &OnCallHandler{Store: NewOnCallStore()}
 
-	// Init IncidentHandler and its store
+	// init config
 	config := loadConfig()
-	client, incidentStore := NewIncidentStore(config)
+
+	// Init IncidentHandler and its store
+	client := getMongoClient(config)
+	incidentStore := NewIncidentStore(client, config)
 	instrumentedIncidentStore := InstrumentedIncidentStore{
 		inner:   incidentStore,
 		metrics: incidentStoreMetric,
@@ -106,8 +89,8 @@ func main() {
 		CurrentOnCall: onCallHandler.Store,
 	}
 
-	// init authHandler
-	userStore := NewInMemoryUserStore()
+	// init authHandler and its store
+	userStore := NewUsertStore(client, config)
 	authHandler := NewAuthHandler(userStore, []byte(config.JWT_SECRET), time.Duration(15*time.Minute))
 
 	// Set router

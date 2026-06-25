@@ -64,7 +64,7 @@ func getRouter(
 	public.HandleFunc("POST /login", LoginResponseMiddleware(authHandler.LoginHandler))
 	public.HandleFunc("POST /registration", ResponseMiddleware(authHandler.RegistrationHandler))
 	// public.Handle("GET /", http.FileServer(http.Dir("./frontend/public")))
-	public.Handle("GET /", spaHandler("./frontend-vue/dist"))
+	public.Handle("GET /", spaHandler("../frontend-vue/dist"))
 
 	root := http.NewServeMux()
 	authMW := AuthMiddleware(authHandler.Secret)

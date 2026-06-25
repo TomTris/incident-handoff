@@ -35,7 +35,7 @@ func NewMongoIncidentStore(client *mongo.Client, DBName string) *MongoIncidentSt
 	// Sofar, it's the best, even at scale.
 	// Becaus most incidents should be resolved overtime
 	// And the heaviest case that index can help is list status = "active"
-	db.Collection(CollectionIncidents).Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+	_, err = db.Collection(CollectionIncidents).Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{Keys: bson.D{
 			{Key: "status", Value: 1},
 			{Key: "service", Value: 1},
@@ -46,12 +46,15 @@ func NewMongoIncidentStore(client *mongo.Client, DBName string) *MongoIncidentSt
 			{Key: "created_at", Value: 1},
 		}},
 	})
+	if err != nil {
+		log.Fatal("error for indexing incidents")
+	}
 	slog.Info("schema/indexes ensured")
 	return &MongoIncidentStore{db: db}
 }
 
 func (m *MongoIncidentStore) nextID(ctx context.Context, name string, prefix string) (string, error) {
-	col := m.db.Collection(CollectionCounters)
+	col := m.db.Collection(CollectionIncidentCounters)
 	filter := bson.M{"_id": name}
 	update := bson.M{"$inc": bson.M{"seq": 1}}
 	opts := options.FindOneAndUpdate().

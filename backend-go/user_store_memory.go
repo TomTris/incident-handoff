@@ -5,30 +5,25 @@ import (
 	"strconv"
 )
 
-type UserStore interface {
-	Create(u User) (User, error)
-	GetByUsername(ctx context.Context, username string) (User, error)
-}
-
-type InMemoryUserStore struct {
+type MemoryUserStore struct {
 	users     map[string]User // username - User
 	currentID int
 }
 
-func NewInMemoryUserStoreWithSeed(seed []User) *InMemoryUserStore {
+func NewMemoryUserStoreWithSeed(seed []User) *MemoryUserStore {
 	m := make(map[string]User, len(seed))
 	for _, u := range seed {
 		m[u.Username] = u
 	}
-	return &InMemoryUserStore{users: m}
+	return &MemoryUserStore{users: m}
 }
 
-func NewInMemoryUserStore() *InMemoryUserStore {
+func NewMemoryUserStore() *MemoryUserStore {
 	m := make(map[string]User)
-	return &InMemoryUserStore{users: m}
+	return &MemoryUserStore{users: m}
 }
 
-func (s *InMemoryUserStore) Create(u User) (User, error) {
+func (s *MemoryUserStore) Create(ctx context.Context, u User) (User, error) {
 	_, ok := s.users[u.Username]
 	if ok == true {
 		return User{}, ErrUserAlreadyExist
@@ -41,7 +36,7 @@ func (s *InMemoryUserStore) Create(u User) (User, error) {
 	return u, nil
 }
 
-func (s *InMemoryUserStore) GetByUsername(_ context.Context, username string) (User, error) {
+func (s *MemoryUserStore) GetByUsername(_ context.Context, username string) (User, error) {
 	u, ok := s.users[username]
 	if ok == false {
 		return User{}, ErrUserNotFound

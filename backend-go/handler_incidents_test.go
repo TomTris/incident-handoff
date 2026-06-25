@@ -257,7 +257,7 @@ func newTestServer(t *testing.T) (*httptest.Server, string, string) {
 		{ID: "u2", Username: "bernd", Password: pwd2, Role: "engineer"},
 		{ID: "u3", Username: "admin", Password: pwd3, Role: "admin"},
 	}
-	userStore := NewInMemoryUserStoreWithSeed(seedUsers)
+	userStore := NewMemoryUserStoreWithSeed(seedUsers)
 	jwt_secret := "testing-JWT-secret"
 	authHandler := NewAuthHandler(userStore, []byte(jwt_secret), time.Duration(15))
 	ttl := time.Duration(15 * time.Minute)

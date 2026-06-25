@@ -39,11 +39,15 @@ func (h *AuthHandler) RegistrationHandler(r *http.Request) (*AppResponse, *AppEr
 		return nil, InternalServerError(err)
 	}
 
-	if _, err := h.Users.Create(User{
+	_, err = h.Users.Create(r.Context(), User{
 		Username: u.Username,
 		Password: hashedPassword,
-	}); err != nil {
-		return nil, Conflict(err)
+	})
+	if err != nil {
+		if errors.Is(err, ErrUserAlreadyExist) {
+			return nil, Conflict(err)
+		}
+		return nil, InternalServerError(err)
 	}
 	return newAppResponse(http.StatusNoContent, nil), nil
 }
@@ -65,7 +69,7 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) (*App
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return nil, Unauthorized(errors.New("Username or Password not correct"))
 		}
-		return nil, Unauthorized(err)
+		return nil, InternalServerError(err)
 	}
 
 	token, err := IssueToken(user, h.Secret, h.TTL, h.Now())

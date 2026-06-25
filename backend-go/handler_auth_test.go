@@ -35,7 +35,7 @@ func TestLoginHandler(t *testing.T) {
 		{ID: "u2", Username: "bernd", Password: pwd2, Role: "engineer"},
 		{ID: "u3", Username: "admin", Password: pwd3, Role: "admin"},
 	}
-	userStore := NewInMemoryUserStoreWithSeed(seedUsers)
+	userStore := NewMemoryUserStoreWithSeed(seedUsers)
 	authHandler := NewAuthHandler(userStore, []byte("JWT-secret"), time.Duration(15*time.Minute))
 	t.Run("Normal login", func(t *testing.T) {
 		userLogin := UserLogin{
